@@ -20,6 +20,9 @@ export function SessionControls() {
       <p>
         Connecté en tant que {session.user.name} ({session.user.role}).
       </p>
+      {session.user.role === "ADMIN" && (
+        <Link href="/admin/users">Gérer les membres</Link>
+      )}
       <button type="button" onClick={() => signOut({ callbackUrl: "/login" })}>
         Se déconnecter
       </button>

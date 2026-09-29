@@ -57,6 +57,7 @@ Prérequis : Node.js et Docker avec Docker Compose.
    La connexion se fait sur `/login`. Auth.js conserve la session dans un cookie
    JWT ; la déconnexion est disponible depuis l'accueil. La protection des pages
    et des routes métier exige un compte connecté. `/api-docs` reste public.
+   Un administrateur peut créer des comptes membres depuis `/admin/users`.
 
 ## Getting Started
 
