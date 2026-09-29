@@ -69,7 +69,7 @@ paths:
       summary: Créer un compte membre
       description: Réservé à l'administrateur. Le mot de passe n'est jamais renvoyé.
       operationId: createUser
-      x-implementation-status: planned
+      x-implementation-status: implemented
       requestBody:
         required: true
         content:
@@ -752,6 +752,7 @@ components:
         temporaryPassword:
           type: string
           minLength: 12
+          description: Limité à 72 octets UTF-8 pour le hachage bcrypt.
           writeOnly: true
     Participant:
       type: object
