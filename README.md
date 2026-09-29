@@ -13,7 +13,8 @@ Prérequis : Node.js et Docker avec Docker Compose.
    ```
 
    Adapter `POSTGRES_PORT` et `DATABASE_URL` si le port PostgreSQL local 5432
-   est déjà utilisé. Ne jamais committer `.env`.
+   est déjà utilisé. Définir `NEXTAUTH_SECRET` avec une valeur aléatoire (par
+   exemple `openssl rand -base64 32`). Ne jamais committer `.env`.
 
 2. Installer les dépendances :
 
@@ -39,7 +40,11 @@ Prérequis : Node.js et Docker avec Docker Compose.
    ```
 
    `SEED_PASSWORD` dans `.env` définit le mot de passe local partagé des comptes
-   de démonstration.
+   de démonstration ; avec bcrypt, il doit tenir en 72 octets UTF-8 au maximum.
+
+   Connectez-vous avec `admin@tdt.local` pour le compte administrateur ou
+   `joueur01@tdt.local` pour un compte membre ; le mot de passe est la valeur
+   locale de `SEED_PASSWORD`.
 
 5. Démarrer Next.js :
 
