@@ -19,9 +19,7 @@ paths:
     get:
       tags: [Tournaments]
       summary: Lister les tournois
-      description: >
-        Contrat cible : accessible à tout utilisateur connecté. La route actuelle
-        ne vérifie pas encore l'authentification ; cela sera ajouté avec le commit Auth.
+      description: Accessible à tout utilisateur connecté, membre ou administrateur.
       operationId: listTournaments
       x-implementation-status: implemented
       responses:

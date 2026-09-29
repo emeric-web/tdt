@@ -15,6 +15,12 @@ export class BadRequestError extends AppError {
   }
 }
 
+export class UnauthorizedError extends AppError {
+  constructor(message = "Connexion requise") {
+    super(401, "UNAUTHORIZED", message);
+  }
+}
+
 export class ForbiddenError extends AppError {
   constructor(message = "Action interdite") {
     super(403, "FORBIDDEN", message);
