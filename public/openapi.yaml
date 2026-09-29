@@ -1,0 +1,973 @@
+openapi: 3.0.3
+info:
+  title: TdT API
+  version: 1.0.0
+  description: >
+    Contrat cible de l'API TdT. Les opérations marquées "planned" sont décrites
+    pour guider les implémentations à venir. Pour le moment, seul
+    GET /api/tournaments est implémenté.
+servers:
+  - url: /api
+    description: API de même origine
+tags:
+  - name: Users
+  - name: Tournaments
+  - name: Matches
+  - name: Audit
+paths:
+  /tournaments:
+    get:
+      tags: [Tournaments]
+      summary: Lister les tournois
+      description: >
+        Contrat cible : accessible à tout utilisateur connecté. La route actuelle
+        ne vérifie pas encore l'authentification ; cela sera ajouté avec le commit Auth.
+      operationId: listTournaments
+      x-implementation-status: implemented
+      responses:
+        "200":
+          description: Liste des tournois, triée par nom
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tournament"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Tournaments]
+      summary: Créer un tournoi
+      description: Réservé à l'administrateur.
+      operationId: createTournament
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTournament"
+      responses:
+        "201":
+          description: Tournoi créé à l'état DRAFT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tournament"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /users:
+    post:
+      tags: [Users]
+      summary: Créer un compte membre
+      description: Réservé à l'administrateur. Le mot de passe n'est jamais renvoyé.
+      operationId: createUser
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUser"
+      responses:
+        "201":
+          description: Compte membre créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /tournaments/{id}/participants:
+    post:
+      tags: [Tournaments]
+      summary: Ajouter un participant au tournoi
+      description: Réservé à l'administrateur tant que le tournoi est en DRAFT.
+      operationId: addTournamentParticipant
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddParticipant"
+      responses:
+        "201":
+          description: Participant inscrit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Participant"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /tournaments/{id}/draw:
+    post:
+      tags: [Tournaments]
+      summary: Générer ou regénérer le tableau
+      description: Réservé à l'administrateur tant que le tournoi est en DRAFT.
+      operationId: drawTournament
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Tableau généré et action inscrite au journal d'audit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bracket"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /tournaments/{id}/swap:
+    post:
+      tags: [Tournaments]
+      summary: Échanger deux joueurs du premier tour
+      description: Réservé à l'administrateur tant que le tournoi est en DRAFT.
+      operationId: swapTournamentPlayers
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SwapPlayers"
+      responses:
+        "200":
+          description: Tableau ajusté et action inscrite au journal d'audit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bracket"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /tournaments/{id}/activate:
+    post:
+      tags: [Tournaments]
+      summary: Activer le tournoi
+      description: Réservé à l'administrateur ; fait passer le tournoi à IN_PROGRESS.
+      operationId: activateTournament
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Tournoi activé et action inscrite au journal d'audit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tournament"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /tournaments/{id}/bracket:
+    get:
+      tags: [Tournaments]
+      summary: Lire le tableau du tournoi
+      description: Accessible à tout utilisateur connecté.
+      operationId: getTournamentBracket
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Tableau complet avec manches et matchs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bracket"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /matches/{id}/schedule:
+    patch:
+      tags: [Matches]
+      summary: Planifier un match
+      description: Réservé à l'administrateur.
+      operationId: scheduleMatch
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleMatch"
+      responses:
+        "200":
+          description: Match planifié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /matches/{id}/declare:
+    post:
+      tags: [Matches]
+      summary: Déclarer le vainqueur et le score
+      description: Réservé à un joueur du match ; le score doit désigner le vainqueur.
+      operationId: declareMatchResult
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeclareResult"
+      responses:
+        "200":
+          description: Résultat déclaré, en attente de réponse de l'adversaire
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /matches/{id}/confirm:
+    post:
+      tags: [Matches]
+      summary: Confirmer le résultat
+      description: Réservé à l'autre joueur ; le vainqueur et le score sont validés ensemble.
+      operationId: confirmMatchResult
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Résultat validé et vainqueur avancé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /matches/{id}/propose-correction:
+    post:
+      tags: [Matches]
+      summary: Proposer l'autre vainqueur
+      description: Réservé à l'autre joueur ; la proposition inclut un score cohérent.
+      operationId: proposeWinnerCorrection
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeclareResult"
+      responses:
+        "200":
+          description: Correction proposée ; aucun joueur n'avance tant qu'elle est ouverte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /matches/{id}/accept-correction:
+    post:
+      tags: [Matches]
+      summary: Accepter la correction du vainqueur
+      description: Réservé au déclarant ; valide le résultat complet et fait avancer le vainqueur.
+      operationId: acceptWinnerCorrection
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Correction acceptée et résultat validé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /matches/{id}/refuse-correction:
+    post:
+      tags: [Matches]
+      summary: Refuser la correction du vainqueur
+      description: Réservé au déclarant ; ouvre un litige sans faire avancer un joueur.
+      operationId: refuseWinnerCorrection
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Litige ouvert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /matches/{id}/contest-score:
+    post:
+      tags: [Matches]
+      summary: Contester uniquement le score
+      description: Le score proposé doit conserver le même vainqueur. Aucun joueur n'avance avant résolution.
+      operationId: contestMatchScore
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [score]
+              properties:
+                score:
+                  $ref: "#/components/schemas/Score"
+      responses:
+        "200":
+          description: Contestation du score enregistrée, sans valider le vainqueur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /matches/{id}/accept-score:
+    post:
+      tags: [Matches]
+      summary: Accepter le score proposé
+      description: Réservé au déclarant ; valide aussi le vainqueur puis le fait avancer.
+      operationId: acceptScoreCorrection
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Score et vainqueur validés
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /matches/{id}/refuse-score:
+    post:
+      tags: [Matches]
+      summary: Refuser le score proposé
+      description: Réservé au déclarant ; ouvre un litige sans faire avancer un joueur.
+      operationId: refuseScoreCorrection
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Litige sur le score ouvert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /matches/{id}/arbitrate:
+    post:
+      tags: [Matches]
+      summary: Arbitrer le résultat d'un match
+      description: Réservé à l'administrateur ; peut aussi enregistrer un forfait ou un abandon.
+      operationId: arbitrateMatch
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArbitrateResult"
+      responses:
+        "200":
+          description: Résultat arbitré et journalisé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /matches/{id}/arbitrate-score:
+    post:
+      tags: [Matches]
+      summary: Arbitrer le score d'un match
+      description: Réservé à l'administrateur ; ne modifie pas le match suivant.
+      operationId: arbitrateMatchScore
+      x-implementation-status: planned
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArbitrateScore"
+      responses:
+        "200":
+          description: Score arbitré et décision journalisée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /audit:
+    get:
+      tags: [Audit]
+      summary: Consulter le journal d'audit
+      description: Réservé à l'administrateur.
+      operationId: listAuditEntries
+      x-implementation-status: planned
+      parameters:
+        - name: tournamentId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Entrées d'audit paginées
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: Données invalides
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    Unauthorized:
+      description: Connexion requise
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    Forbidden:
+      description: Action interdite
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    NotFound:
+      description: Ressource introuvable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    Conflict:
+      description: État incompatible avec l'action
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    InternalError:
+      description: Erreur interne
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+  schemas:
+    ApiErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              examples:
+                [
+                  BAD_REQUEST,
+                  UNAUTHORIZED,
+                  FORBIDDEN,
+                  NOT_FOUND,
+                  CONFLICT,
+                  INTERNAL,
+                ]
+            message:
+              type: string
+    Tournament:
+      type: object
+      required: [id, name, finalSetSuperTiebreak, status]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        startDate:
+          type: string
+          nullable: true
+          format: date-time
+        finalSetSuperTiebreak:
+          type: boolean
+        status:
+          type: string
+          enum: [DRAFT, IN_PROGRESS, FINISHED]
+    CreateTournament:
+      type: object
+      required: [name, finalSetSuperTiebreak]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 80
+        startDate:
+          type: string
+          format: date-time
+        finalSetSuperTiebreak:
+          type: boolean
+    User:
+      type: object
+      required: [id, name, role]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, MEMBER]
+    CreateUser:
+      type: object
+      required: [name, email, temporaryPassword]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        email:
+          type: string
+          format: email
+        temporaryPassword:
+          type: string
+          minLength: 12
+          writeOnly: true
+    Participant:
+      type: object
+      required: [id, tournamentId, userId]
+      properties:
+        id:
+          type: string
+        tournamentId:
+          type: string
+        userId:
+          type: string
+        seed:
+          type: integer
+          nullable: true
+          minimum: 1
+    AddParticipant:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+          minLength: 1
+        seed:
+          type: integer
+          minimum: 1
+    SwapPlayers:
+      type: object
+      required: [playerAId, playerBId]
+      properties:
+        playerAId:
+          type: string
+        playerBId:
+          type: string
+    SetScore:
+      type: object
+      required: [p1, p2]
+      properties:
+        p1:
+          type: integer
+          minimum: 0
+        p2:
+          type: integer
+          minimum: 0
+        tb:
+          type: integer
+          minimum: 0
+          description: Points du perdant du tie-break, facultatifs pour un set 7-6.
+    Score:
+      type: array
+      minItems: 2
+      maxItems: 3
+      items:
+        $ref: "#/components/schemas/SetScore"
+    DeclareResult:
+      type: object
+      required: [winnerId, score]
+      properties:
+        winnerId:
+          type: string
+        score:
+          $ref: "#/components/schemas/Score"
+    ArbitrateResult:
+      type: object
+      required: [winnerId, resultKind, reason]
+      properties:
+        winnerId:
+          type: string
+        score:
+          $ref: "#/components/schemas/Score"
+        resultKind:
+          type: string
+          enum: [NORMAL, ABANDON, FORFEIT]
+        reason:
+          type: string
+          minLength: 1
+    ArbitrateScore:
+      type: object
+      required: [score]
+      properties:
+        score:
+          $ref: "#/components/schemas/Score"
+        resultKind:
+          type: string
+          enum: [NORMAL, ABANDON]
+        reason:
+          type: string
+    ScheduleMatch:
+      type: object
+      required: [scheduledAt, court]
+      properties:
+        scheduledAt:
+          type: string
+          format: date-time
+        court:
+          type: string
+          minLength: 1
+          maxLength: 100
+    Match:
+      type: object
+      description: DTO public de match ; ne contient aucune donnée sensible.
+      properties:
+        id:
+          type: string
+        tournamentId:
+          type: string
+        round:
+          type: integer
+        position:
+          type: integer
+        winnerId:
+          type: string
+          nullable: true
+        declaredById:
+          type: string
+          nullable: true
+        proposedWinnerId:
+          type: string
+          nullable: true
+        scoreStatus:
+          type: string
+          enum: [NONE, DECLARED, CORRECTION_PROPOSED, DISPUTED, VALIDATED]
+        status:
+          type: string
+          enum: [PENDING, DECLARED, CORRECTION_PROPOSED, DISPUTED, VALIDATED]
+        resultKind:
+          type: string
+          nullable: true
+          enum: [NORMAL, ABANDON, FORFEIT, BYE]
+        score:
+          type: array
+          nullable: true
+          minItems: 2
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/SetScore"
+        proposedScore:
+          type: array
+          nullable: true
+          minItems: 2
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/SetScore"
+        isBye:
+          type: boolean
+        scheduledAt:
+          type: string
+          nullable: true
+          format: date-time
+        court:
+          type: string
+          nullable: true
+    Bracket:
+      type: object
+      required: [tournament, rounds]
+      properties:
+        tournament:
+          $ref: "#/components/schemas/Tournament"
+        rounds:
+          type: array
+          items:
+            type: object
+            required: [round, matches]
+            properties:
+              round:
+                type: integer
+              matches:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Match"
+    AuditEntry:
+      type: object
+      required: [id, tournamentId, actorId, action, entity, entityId, createdAt]
+      properties:
+        id:
+          type: string
+        tournamentId:
+          type: string
+        actorId:
+          type: string
+        action:
+          type: string
+          enum:
+            [
+              DRAW,
+              SWAP_PLAYERS,
+              ACTIVATE,
+              ARBITRATE,
+              ARBITRATE_SCORE,
+              CORRECT_RESULT,
+            ]
+        reason:
+          type: [string, "null"]
+        entity:
+          type: string
+        entityId:
+          type: string
+        before:
+          type: [object, "null"]
+        after:
+          type: [object, "null"]
+        createdAt:
+          type: string
+          format: date-time
+    AuditPage:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEntry"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
