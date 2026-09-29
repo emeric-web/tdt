@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum TournamentStatus {
+  DRAFT
+  IN_PROGRESS
+  FINISHED
+}
+
+enum MatchStatus {
+  PENDING
+  DECLARED
+  CORRECTION_PROPOSED
+  DISPUTED
+  VALIDATED
+}
+
+enum ScoreStatus {
+  NONE
+  DECLARED
+  CORRECTION_PROPOSED
+  DISPUTED
+  VALIDATED
+}
+
+enum ResultKind {
+  NORMAL
+  ABANDON
+  FORFEIT
+  BYE
+}
+
+enum AuditAction {
+  DRAW
+  SWAP_PLAYERS
+  ACTIVATE
+  ARBITRATE
+  ARBITRATE_SCORE
+  CORRECT_RESULT
+}
+
+model User {
+  id           String  @id @default(cuid())
+  name         String
+  email        String  @unique
+  passwordHash String
+  role         Role    @default(MEMBER)
+  anonymized   Boolean @default(false)
+
+  participations  Participant[]
+  player1Matches  Match[]       @relation("MatchPlayer1")
+  player2Matches  Match[]       @relation("MatchPlayer2")
+  wonMatches      Match[]       @relation("MatchWinner")
+  declaredMatches Match[]       @relation("MatchDeclaredBy")
+  declaredResults Match[]       @relation("MatchDeclaredWinner")
+  proposedResults Match[]       @relation("MatchProposedWinner")
+  auditEntries    AuditLog[]    @relation("AuditActor")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Tournament {
+  id                    String           @id @default(cuid())
+  name                  String
+  startDate             DateTime?
+  finalSetSuperTiebreak Boolean          @default(false)
+  status                TournamentStatus @default(DRAFT)
+
+  participants Participant[]
+  matches      Match[]
+  auditEntries AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Participant {
+  id           String @id @default(cuid())
+  tournamentId String
+  userId       String
+  seed         Int?
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Restrict)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tournamentId, userId])
+  @@unique([tournamentId, seed])
+  @@index([userId])
+}
+
+model Match {
+  id               String      @id @default(cuid())
+  tournamentId     String
+  round            Int
+  position         Int
+  player1Id        String?
+  player2Id        String?
+  winnerId         String?
+  declaredById     String?
+  declaredWinnerId String?
+  declaredScore    Json?
+  proposedWinnerId String?
+  score            Json?
+  proposedScore    Json?
+  scoreStatus      ScoreStatus @default(NONE)
+  status           MatchStatus @default(PENDING)
+  resultKind       ResultKind?
+  isBye            Boolean     @default(false)
+  scheduledAt      DateTime?
+  court            String?
+  nextMatchId      String?
+  nextSlot         Int?
+  version          Int         @default(0)
+
+  tournament      Tournament @relation(fields: [tournamentId], references: [id], onDelete: Restrict)
+  player1         User?      @relation("MatchPlayer1", fields: [player1Id], references: [id], onDelete: Restrict)
+  player2         User?      @relation("MatchPlayer2", fields: [player2Id], references: [id], onDelete: Restrict)
+  winner          User?      @relation("MatchWinner", fields: [winnerId], references: [id], onDelete: Restrict)
+  declaredBy      User?      @relation("MatchDeclaredBy", fields: [declaredById], references: [id], onDelete: Restrict)
+  declaredWinner  User?      @relation("MatchDeclaredWinner", fields: [declaredWinnerId], references: [id], onDelete: Restrict)
+  proposedWinner  User?      @relation("MatchProposedWinner", fields: [proposedWinnerId], references: [id], onDelete: Restrict)
+  nextMatch       Match?     @relation("MatchProgression", fields: [nextMatchId], references: [id], onDelete: Restrict)
+  previousMatches Match[]    @relation("MatchProgression")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tournamentId, round, position])
+  @@index([tournamentId, status])
+  @@index([nextMatchId])
+}
+
+model AuditLog {
+  id           String      @id @default(cuid())
+  tournamentId String
+  actorId      String
+  action       AuditAction
+  reason       String?
+  entity       String
+  entityId     String
+  before       Json?
+  after        Json?
+  createdAt    DateTime    @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Restrict)
+  actor      User       @relation("AuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([tournamentId, createdAt])
+  @@index([entity, entityId])
+}
