@@ -116,7 +116,7 @@ export function CreateMemberForm() {
           type="password"
           name="temporaryPassword"
           autoComplete="new-password"
-          minLength={12}
+          minLength={9}
           maxLength={72}
           required
           disabled={isSubmitting}

@@ -751,7 +751,7 @@ components:
           format: email
         temporaryPassword:
           type: string
-          minLength: 12
+          minLength: 9
           description: Limité à 72 octets UTF-8 pour le hachage bcrypt.
           writeOnly: true
     Participant:

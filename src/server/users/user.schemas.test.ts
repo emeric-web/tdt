@@ -3,6 +3,16 @@ import { describe, expect, it } from "vitest";
 import { createMemberSchema } from "@/server/users/user.schemas";
 
 describe("createMemberSchema", () => {
+  it("accepts a temporary password with nine characters", () => {
+    expect(
+      createMemberSchema.safeParse({
+        name: "Ada",
+        email: "ada@example.test",
+        temporaryPassword: "123456789",
+      }).success,
+    ).toBe(true);
+  });
+
   it("trims names and normalizes email addresses", () => {
     expect(
       createMemberSchema.parse({
@@ -29,7 +39,7 @@ describe("createMemberSchema", () => {
       temporaryPassword: "long-password-1",
     },
     { name: "Ada", email: "invalid", temporaryPassword: "long-password-1" },
-    { name: "Ada", email: "ada@example.test", temporaryPassword: "short" },
+    { name: "Ada", email: "ada@example.test", temporaryPassword: "12345678" },
     {
       name: "Ada",
       email: "ada@example.test",

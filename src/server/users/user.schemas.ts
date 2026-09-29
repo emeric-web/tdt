@@ -5,7 +5,7 @@ export const createMemberSchema = z.strictObject({
   email: z.string().trim().toLowerCase().pipe(z.email()),
   temporaryPassword: z
     .string()
-    .min(12)
+    .min(9)
     .refine((password) => Buffer.byteLength(password, "utf8") <= 72),
 });
 
