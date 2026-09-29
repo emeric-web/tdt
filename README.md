@@ -54,6 +54,10 @@ Prérequis : Node.js et Docker avec Docker Compose.
 
    Ouvrir [http://localhost:3000](http://localhost:3000).
 
+   La connexion se fait sur `/login`. Auth.js conserve la session dans un cookie
+   JWT ; la déconnexion est disponible depuis l'accueil. La protection des pages
+   et des routes sera ajoutée dans l'étape suivante.
+
 ## Getting Started
 
 For day-to-day development, start the development server:
