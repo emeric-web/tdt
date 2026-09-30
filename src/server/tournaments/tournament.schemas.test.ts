@@ -4,6 +4,7 @@ import {
   addParticipantSchema,
   createTournamentSchema,
   listTournamentsSchema,
+  updateParticipantSeedSchema,
 } from "@/server/tournaments/tournament.schemas";
 
 describe("tournament schemas", () => {
@@ -68,5 +69,17 @@ describe("tournament schemas", () => {
     expect(
       addParticipantSchema.safeParse({ userId: "user-1", seed: 1.5 }).success,
     ).toBe(false);
+  });
+
+  it("allows clearing a seed and rejects non-positive or fractional seeds", () => {
+    expect(updateParticipantSeedSchema.parse({ seed: null })).toEqual({
+      seed: null,
+    });
+    expect(updateParticipantSeedSchema.safeParse({ seed: 0 }).success).toBe(
+      false,
+    );
+    expect(updateParticipantSeedSchema.safeParse({ seed: 1.5 }).success).toBe(
+      false,
+    );
   });
 });

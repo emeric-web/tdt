@@ -5,7 +5,8 @@ info:
   description: >
     Contrat cible de l'API TdT. Les opérations marquées "planned" sont décrites
     pour guider les implémentations à venir. GET /api/tournaments,
-    POST /api/tournaments, GET/POST /api/users sont implémentés.
+    POST /api/tournaments, GET/POST /api/users et les opérations d'inscription
+    et de têtes de série sont implémentés.
 servers:
   - url: /api
     description: API de même origine
@@ -161,12 +162,47 @@ paths:
           $ref: "#/components/responses/InternalError"
 
   /tournaments/{id}/participants:
+    get:
+      tags: [Tournaments]
+      summary: Lister les participants inscrits
+      description: Réservé à l'administrateur.
+      operationId: listTournamentParticipants
+      x-implementation-status: implemented
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Participants inscrits et état du tournoi
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, canEdit, items]
+                properties:
+                  status:
+                    type: string
+                    enum: [DRAFT, IN_PROGRESS, FINISHED]
+                  canEdit:
+                    type: boolean
+                    description: False after draw generation, even while the tournament remains DRAFT.
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Participant"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
     post:
       tags: [Tournaments]
       summary: Ajouter un participant au tournoi
       description: Réservé à l'administrateur tant que le tournoi est en DRAFT.
       operationId: addTournamentParticipant
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: "#/components/parameters/ResourceId"
       requestBody:
@@ -178,6 +214,46 @@ paths:
       responses:
         "201":
           description: Participant inscrit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Participant"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /tournaments/{id}/participants/{participantId}:
+    patch:
+      tags: [Tournaments]
+      summary: Modifier la tête de série d'un participant
+      description: Réservé à l'administrateur tant que le tournoi est en DRAFT. Une valeur null retire la tête de série.
+      operationId: updateTournamentParticipantSeed
+      x-implementation-status: implemented
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - in: path
+          name: participantId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateParticipantSeed"
+      responses:
+        "200":
+          description: Tête de série mise à jour
           content:
             application/json:
               schema:
@@ -839,13 +915,15 @@ components:
           writeOnly: true
     Participant:
       type: object
-      required: [id, tournamentId, userId]
+      required: [id, tournamentId, userId, name, seed]
       properties:
         id:
           type: string
         tournamentId:
           type: string
         userId:
+          type: string
+        name:
           type: string
         seed:
           type: integer
@@ -861,6 +939,14 @@ components:
         seed:
           type: integer
           minimum: 1
+    UpdateParticipantSeed:
+      type: object
+      required: [seed]
+      properties:
+        seed:
+          type: integer
+          minimum: 1
+          nullable: true
     SwapPlayers:
       type: object
       required: [playerAId, playerBId]

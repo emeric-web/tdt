@@ -17,5 +17,9 @@ export const addParticipantSchema = z.object({
   seed: z.number().int().positive().optional(),
 });
 
+export const updateParticipantSeedSchema = z.strictObject({
+  seed: z.number().int().positive().nullable(),
+});
+
 export type CreateTournamentInput = z.infer<typeof createTournamentSchema>;
 export type ListTournamentsInput = z.infer<typeof listTournamentsSchema>;

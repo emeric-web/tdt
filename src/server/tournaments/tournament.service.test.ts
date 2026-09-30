@@ -21,6 +21,9 @@ describe("TournamentService", () => {
     const repository = {
       findPage: vi.fn().mockResolvedValue(result),
       create: vi.fn(),
+      listParticipants: vi.fn(),
+      addParticipant: vi.fn(),
+      updateParticipantSeed: vi.fn(),
     };
     const service = new TournamentService(repository);
 
@@ -42,6 +45,9 @@ describe("TournamentService", () => {
     const repository = {
       findPage: vi.fn(),
       create: vi.fn().mockResolvedValue(tournament),
+      listParticipants: vi.fn(),
+      addParticipant: vi.fn(),
+      updateParticipantSeed: vi.fn(),
     };
     const service = new TournamentService(repository);
 
@@ -61,6 +67,9 @@ describe("TournamentService", () => {
     const repository = {
       findPage: vi.fn(),
       create: vi.fn(),
+      listParticipants: vi.fn(),
+      addParticipant: vi.fn(),
+      updateParticipantSeed: vi.fn(),
     };
     const service = new TournamentService(repository);
 
@@ -68,5 +77,58 @@ describe("TournamentService", () => {
       service.create({ name: "x", finalSetSuperTiebreak: false }),
     ).rejects.toThrow();
     expect(repository.create).not.toHaveBeenCalled();
+  });
+
+  it("adds participants after validating their seed", async () => {
+    const participant = {
+      id: "participant-1",
+      userId: "user-1",
+      name: "Ada",
+      seed: 1,
+    };
+    const repository = {
+      findPage: vi.fn(),
+      create: vi.fn(),
+      listParticipants: vi.fn(),
+      addParticipant: vi.fn().mockResolvedValue(participant),
+      updateParticipantSeed: vi.fn(),
+    };
+    const service = new TournamentService(repository);
+
+    await expect(
+      service.addParticipant("tournament-1", { userId: "user-1", seed: 1 }),
+    ).resolves.toEqual(participant);
+    expect(repository.addParticipant).toHaveBeenCalledWith("tournament-1", {
+      userId: "user-1",
+      seed: 1,
+    });
+  });
+
+  it("updates or clears a participant seed after validation", async () => {
+    const participant = {
+      id: "participant-1",
+      userId: "user-1",
+      name: "Ada",
+      seed: null,
+    };
+    const repository = {
+      findPage: vi.fn(),
+      create: vi.fn(),
+      listParticipants: vi.fn(),
+      addParticipant: vi.fn(),
+      updateParticipantSeed: vi.fn().mockResolvedValue(participant),
+    };
+    const service = new TournamentService(repository);
+
+    await expect(
+      service.updateParticipantSeed("tournament-1", "participant-1", {
+        seed: null,
+      }),
+    ).resolves.toEqual(participant);
+    expect(repository.updateParticipantSeed).toHaveBeenCalledWith(
+      "tournament-1",
+      "participant-1",
+      null,
+    );
   });
 });
