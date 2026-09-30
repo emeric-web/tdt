@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   addParticipantSchema,
   createTournamentSchema,
+  listTournamentsSchema,
 } from "@/server/tournaments/tournament.schemas";
 
 describe("tournament schemas", () => {
@@ -32,6 +33,27 @@ describe("tournament schemas", () => {
         finalSetSuperTiebreak: false,
       }).success,
     ).toBe(false);
+  });
+
+  it("validates and defaults tournament list pagination", () => {
+    expect(listTournamentsSchema.parse({})).toEqual({
+      page: 1,
+      pageSize: 20,
+    });
+    expect(
+      listTournamentsSchema.parse({
+        status: "DRAFT",
+        page: "2",
+        pageSize: "10",
+      }),
+    ).toEqual({
+      status: "DRAFT",
+      page: 2,
+      pageSize: 10,
+    });
+    expect(listTournamentsSchema.safeParse({ pageSize: "101" }).success).toBe(
+      false,
+    );
   });
 
   it("requires a positive integer seed when one is provided", () => {
