@@ -21,7 +21,11 @@ export function SessionControls() {
         Connecté en tant que {session.user.name} ({session.user.role}).
       </p>
       {session.user.role === "ADMIN" && (
-        <Link href="/admin/users">Gérer les membres</Link>
+        <nav aria-label="Administration">
+          <Link href="/admin/users">Gérer les membres</Link>
+          {" · "}
+          <Link href="/admin/tournaments">Créer un tournoi</Link>
+        </nav>
       )}
       <button type="button" onClick={() => signOut({ callbackUrl: "/login" })}>
         Se déconnecter

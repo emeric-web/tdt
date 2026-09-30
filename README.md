@@ -58,6 +58,8 @@ Prérequis : Node.js et Docker avec Docker Compose.
    JWT ; la déconnexion est disponible depuis l'accueil. La protection des pages
    et des routes métier exige un compte connecté. `/api-docs` reste public.
    Un administrateur peut créer des comptes membres depuis `/admin/users`.
+   Les utilisateurs connectés consultent les tournois sur l'accueil ; les
+   administrateurs peuvent en créer depuis `/admin/tournaments`.
 
 ## Getting Started
 
