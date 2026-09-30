@@ -33,3 +33,14 @@ export async function POST(request: Request): Promise<Response> {
     return handleError(error);
   }
 }
+
+export async function GET(request: Request): Promise<Response> {
+  try {
+    await requireUserWithRole([Role.ADMIN]);
+    const query = Object.fromEntries(new URL(request.url).searchParams);
+
+    return Response.json(await userService.listMembers(query));
+  } catch (error) {
+    return handleError(error);
+  }
+}

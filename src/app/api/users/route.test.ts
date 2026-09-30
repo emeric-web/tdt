@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ForbiddenError } from "@/server/errors/app-error";
 
-const { createMember, requireUserWithRole } = vi.hoisted(() => ({
+const { createMember, listMembers, requireUserWithRole } = vi.hoisted(() => ({
   createMember: vi.fn(),
+  listMembers: vi.fn(),
   requireUserWithRole: vi.fn(),
 }));
 
@@ -18,14 +19,49 @@ vi.mock("@/server/users/user.repository", () => ({
 vi.mock("@/server/users/user.service", () => ({
   UserService: class {
     createMember = createMember;
+    listMembers = listMembers;
   },
 }));
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 describe("POST /api/users", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe("GET /api/users", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("lists members only for administrators", async () => {
+      requireUserWithRole.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+      const members = {
+        items: [{ id: "member-1", name: "Ada", email: "ada@example.test" }],
+        page: 1,
+        pageSize: 20,
+        total: 1,
+      };
+      listMembers.mockResolvedValue(members);
+
+      const response = await GET(
+        new Request("http://localhost/api/users?page=1&pageSize=20"),
+      );
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual(members);
+      expect(listMembers).toHaveBeenCalledWith({ page: "1", pageSize: "20" });
+    });
+
+    it("rejects members", async () => {
+      requireUserWithRole.mockRejectedValue(new ForbiddenError());
+
+      const response = await GET(new Request("http://localhost/api/users"));
+
+      expect(response.status).toBe(403);
+      expect(listMembers).not.toHaveBeenCalled();
+    });
   });
 
   it("rejects non-admin users before processing the request", async () => {

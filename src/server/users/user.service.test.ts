@@ -18,6 +18,7 @@ describe("UserService", () => {
         email: "ada@example.test",
         role: "MEMBER",
       }),
+      findMembers: vi.fn(),
     };
     const hashPassword = vi.fn().mockResolvedValue("hashed-password");
     const service = new UserService(repository, hashPassword);
@@ -38,7 +39,7 @@ describe("UserService", () => {
   });
 
   it("does not hash or persist invalid member data", async () => {
-    const repository = { createMember: vi.fn() };
+    const repository = { createMember: vi.fn(), findMembers: vi.fn() };
     const hashPassword = vi.fn();
     const service = new UserService(repository, hashPassword);
 
@@ -57,6 +58,7 @@ describe("UserService", () => {
         .mockRejectedValue(
           new ConflictError("Cette adresse e-mail est déjà utilisée."),
         ),
+      findMembers: vi.fn(),
     };
     const service = new UserService(
       repository,
@@ -64,5 +66,27 @@ describe("UserService", () => {
     );
 
     await expect(service.createMember(input)).rejects.toThrow(ConflictError);
+  });
+
+  it("lists members through the repository with validated pagination", async () => {
+    const page = {
+      items: [],
+      page: 2,
+      pageSize: 10,
+      total: 15,
+    };
+    const repository = {
+      createMember: vi.fn(),
+      findMembers: vi.fn().mockResolvedValue(page),
+    };
+    const service = new UserService(repository, vi.fn());
+
+    await expect(
+      service.listMembers({ page: "2", pageSize: "10" }),
+    ).resolves.toEqual(page);
+    expect(repository.findMembers).toHaveBeenCalledWith({
+      page: 2,
+      pageSize: 10,
+    });
   });
 });

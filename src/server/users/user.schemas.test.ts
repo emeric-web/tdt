@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { createMemberSchema } from "@/server/users/user.schemas";
+import {
+  createMemberSchema,
+  listMembersSchema,
+} from "@/server/users/user.schemas";
 
 describe("createMemberSchema", () => {
   it("accepts a temporary password with nine characters", () => {
@@ -53,5 +56,16 @@ describe("createMemberSchema", () => {
     },
   ])("rejects invalid or unexpected account fields", (candidate) => {
     expect(createMemberSchema.safeParse(candidate).success).toBe(false);
+  });
+
+  it("defaults and validates member-list pagination", () => {
+    expect(listMembersSchema.parse({})).toEqual({ page: 1, pageSize: 20 });
+    expect(listMembersSchema.parse({ page: "2", pageSize: "10" })).toEqual({
+      page: 2,
+      pageSize: 10,
+    });
+    expect(listMembersSchema.safeParse({ pageSize: "101" }).success).toBe(
+      false,
+    );
   });
 });

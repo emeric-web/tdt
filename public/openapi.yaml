@@ -5,7 +5,7 @@ info:
   description: >
     Contrat cible de l'API TdT. Les opérations marquées "planned" sont décrites
     pour guider les implémentations à venir. GET /api/tournaments,
-    POST /api/tournaments et POST /api/users sont implémentés.
+    POST /api/tournaments, GET/POST /api/users sont implémentés.
 servers:
   - url: /api
     description: API de même origine
@@ -95,6 +95,41 @@ paths:
           $ref: "#/components/responses/InternalError"
 
   /users:
+    get:
+      tags: [Users]
+      summary: Lister les membres
+      description: Réservé à l'administrateur ; les comptes anonymisés sont exclus.
+      operationId: listMembers
+      x-implementation-status: implemented
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Page de membres triée par nom
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
     post:
       tags: [Users]
       summary: Créer un compte membre
@@ -760,15 +795,32 @@ components:
           type: boolean
     User:
       type: object
-      required: [id, name, role]
+      required: [id, name, email, role]
       properties:
         id:
           type: string
         name:
           type: string
+        email:
+          type: string
+          format: email
         role:
           type: string
           enum: [ADMIN, MEMBER]
+    UserPage:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
     CreateUser:
       type: object
       required: [name, email, temporaryPassword]

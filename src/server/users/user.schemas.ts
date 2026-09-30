@@ -9,4 +9,10 @@ export const createMemberSchema = z.strictObject({
     .refine((password) => Buffer.byteLength(password, "utf8") <= 72),
 });
 
+export const listMembersSchema = z.strictObject({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 export type CreateMemberInput = z.infer<typeof createMemberSchema>;
+export type ListMembersInput = z.infer<typeof listMembersSchema>;

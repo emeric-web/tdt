@@ -1,5 +1,7 @@
 import { createMemberSchema } from "@/server/users/user.schemas";
+import { listMembersSchema } from "@/server/users/user.schemas";
 import type {
+  MemberPage,
   PublicUser,
   UserRepository,
 } from "@/server/users/user.repository";
@@ -21,5 +23,11 @@ export class UserService {
       email: member.email,
       passwordHash,
     });
+  }
+
+  listMembers(input: unknown = {}): Promise<MemberPage> {
+    const query = listMembersSchema.parse(input);
+
+    return this.repository.findMembers(query);
   }
 }
