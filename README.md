@@ -60,6 +60,8 @@ Prérequis : Node.js et Docker avec Docker Compose.
    Un administrateur peut créer des comptes membres depuis `/admin/users`.
    Les utilisateurs connectés consultent les tournois sur l'accueil ; les
    administrateurs peuvent en créer depuis `/admin/tournaments`.
+   Depuis la liste, un administrateur peut gérer les inscriptions et les têtes
+   de série des tournois en préparation.
 
 ## Getting Started
 

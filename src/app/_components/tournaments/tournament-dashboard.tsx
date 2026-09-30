@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type TournamentStatus = "DRAFT" | "IN_PROGRESS" | "FINISHED";
 
@@ -57,7 +58,11 @@ function isTournamentPage(result: unknown): result is TournamentPage {
   );
 }
 
-export function TournamentDashboard() {
+export function TournamentDashboard({
+  isAdmin = false,
+}: {
+  isAdmin?: boolean;
+}) {
   const [tournamentPage, setTournamentPage] = useState<TournamentPage | null>(
     null,
   );
@@ -155,6 +160,15 @@ export function TournamentDashboard() {
                       ? "Super tie-break au dernier set"
                       : "Troisième set complet"}
                   </p>
+                  {isAdmin && (
+                    <Link
+                      href={`/admin/tournaments/${tournament.id}/participants`}
+                    >
+                      {tournament.status === "DRAFT"
+                        ? "Gérer les inscriptions"
+                        : "Consulter les participants"}
+                    </Link>
+                  )}
                 </article>
               </li>
             ))}
