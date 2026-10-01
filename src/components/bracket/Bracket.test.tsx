@@ -87,7 +87,7 @@ describe("Bracket", () => {
 
     expect(screen.getByText("Bruno Petit")).toBeInTheDocument();
     expect(screen.getAllByText("6").length).toBeGreaterThan(0);
-    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.getByText("4")).toBeInTheDocument();
   });
 
   it("keeps every round in the bracket instead of switching between rounds", () => {

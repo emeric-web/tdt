@@ -12,6 +12,7 @@ export type ScoreStatus =
 export type SetScore = {
   p1: number;
   p2: number;
+  tb?: number;
 };
 
 export type MatchDto = {
