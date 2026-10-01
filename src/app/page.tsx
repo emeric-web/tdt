@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/server/auth/auth-options";
 
-import { SessionControls } from "./_components/auth/session-controls";
-import { TournamentDashboard } from "./_components/tournaments/tournament-dashboard";
+import { SessionControls } from "@/components/auth/session-controls";
+import { TournamentDashboard } from "@/components/tournaments/tournament-dashboard";
 
 export default async function Home() {
   const session = await getServerSession(authOptions);

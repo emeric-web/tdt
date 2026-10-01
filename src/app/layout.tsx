@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "swagger-ui-react/swagger-ui.css";
 
-import { AuthSessionProvider } from "./_components/auth/session-provider";
+import { AuthSessionProvider } from "@/components/auth/session-provider";
 
 export const metadata: Metadata = {
   title: "TdT",
