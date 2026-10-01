@@ -24,6 +24,9 @@ describe("TournamentService", () => {
       listParticipants: vi.fn(),
       addParticipant: vi.fn(),
       updateParticipantSeed: vi.fn(),
+      draw: vi.fn(),
+      removeParticipant: vi.fn(),
+      activate: vi.fn(),
     };
     const service = new TournamentService(repository);
 
@@ -48,6 +51,9 @@ describe("TournamentService", () => {
       listParticipants: vi.fn(),
       addParticipant: vi.fn(),
       updateParticipantSeed: vi.fn(),
+      draw: vi.fn(),
+      removeParticipant: vi.fn(),
+      activate: vi.fn(),
     };
     const service = new TournamentService(repository);
 
@@ -70,6 +76,9 @@ describe("TournamentService", () => {
       listParticipants: vi.fn(),
       addParticipant: vi.fn(),
       updateParticipantSeed: vi.fn(),
+      draw: vi.fn(),
+      removeParticipant: vi.fn(),
+      activate: vi.fn(),
     };
     const service = new TournamentService(repository);
 
@@ -92,6 +101,9 @@ describe("TournamentService", () => {
       listParticipants: vi.fn(),
       addParticipant: vi.fn().mockResolvedValue(participant),
       updateParticipantSeed: vi.fn(),
+      draw: vi.fn(),
+      removeParticipant: vi.fn(),
+      activate: vi.fn(),
     };
     const service = new TournamentService(repository);
 
@@ -117,6 +129,9 @@ describe("TournamentService", () => {
       listParticipants: vi.fn(),
       addParticipant: vi.fn(),
       updateParticipantSeed: vi.fn().mockResolvedValue(participant),
+      draw: vi.fn(),
+      removeParticipant: vi.fn(),
+      activate: vi.fn(),
     };
     const service = new TournamentService(repository);
 
@@ -130,5 +145,85 @@ describe("TournamentService", () => {
       "participant-1",
       null,
     );
+  });
+
+  it("delegates the draw to the repository", async () => {
+    const matches = [
+      {
+        id: "match-1",
+        round: 1,
+        position: 0,
+        player1Id: "participant-1",
+        player2Id: "participant-2",
+        winnerId: null,
+        isBye: false,
+        nextMatchId: null,
+        nextSlot: null,
+      },
+    ];
+    const repository = {
+      findPage: vi.fn(),
+      create: vi.fn(),
+      listParticipants: vi.fn(),
+      addParticipant: vi.fn(),
+      updateParticipantSeed: vi.fn(),
+      draw: vi.fn().mockResolvedValue(matches),
+      removeParticipant: vi.fn(),
+      activate: vi.fn(),
+    };
+    const service = new TournamentService(repository);
+
+    await expect(service.draw("tournament-1", "actor-1")).resolves.toEqual(
+      matches,
+    );
+    expect(repository.draw).toHaveBeenCalledWith("tournament-1", "actor-1");
+  });
+
+  it("delegates participant removal to the repository", async () => {
+    const repository = {
+      findPage: vi.fn(),
+      create: vi.fn(),
+      listParticipants: vi.fn(),
+      addParticipant: vi.fn(),
+      updateParticipantSeed: vi.fn(),
+      draw: vi.fn(),
+      removeParticipant: vi.fn().mockResolvedValue(undefined),
+      activate: vi.fn(),
+    };
+    const service = new TournamentService(repository);
+
+    await expect(
+      service.removeParticipant("tournament-1", "participant-1"),
+    ).resolves.toBeUndefined();
+    expect(repository.removeParticipant).toHaveBeenCalledWith(
+      "tournament-1",
+      "participant-1",
+    );
+  });
+
+  it("delegates activation to the repository", async () => {
+    const tournament = {
+      id: "tournament-1",
+      name: "Club Open",
+      startDate: null,
+      status: "IN_PROGRESS" as const,
+      finalSetSuperTiebreak: false,
+    };
+    const repository = {
+      findPage: vi.fn(),
+      create: vi.fn(),
+      listParticipants: vi.fn(),
+      addParticipant: vi.fn(),
+      updateParticipantSeed: vi.fn(),
+      draw: vi.fn(),
+      removeParticipant: vi.fn(),
+      activate: vi.fn().mockResolvedValue(tournament),
+    };
+    const service = new TournamentService(repository);
+
+    await expect(service.activate("tournament-1", "actor-1")).resolves.toEqual(
+      tournament,
+    );
+    expect(repository.activate).toHaveBeenCalledWith("tournament-1", "actor-1");
   });
 });

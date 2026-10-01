@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { BadRequestError } from "@/server/errors/app-error";
 import {
   computeBracketSize,
+  computeRoundCount,
   generateFirstRoundMatches,
   type BracketParticipant,
 } from "@/server/bracket/bracket.generator";
@@ -19,6 +20,19 @@ describe("computeBracketSize", () => {
     [17, 32],
   ])("returns %i -> %i", (participantCount, expected) => {
     expect(computeBracketSize(participantCount)).toBe(expected);
+  });
+});
+
+describe("computeRoundCount", () => {
+  it.each([
+    [1, 0],
+    [2, 1],
+    [4, 2],
+    [8, 3],
+    [16, 4],
+    [32, 5],
+  ])("returns %i -> %i", (bracketSize, expected) => {
+    expect(computeRoundCount(bracketSize)).toBe(expected);
   });
 });
 

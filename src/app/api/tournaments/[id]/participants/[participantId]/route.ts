@@ -40,3 +40,19 @@ export async function PATCH(
     return handleError(error);
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: RouteContext,
+): Promise<Response> {
+  try {
+    await requireUserWithRole([Role.ADMIN]);
+    const { id, participantId } = await params;
+
+    await tournamentService.removeParticipant(id, participantId);
+
+    return new Response(null, { status: 204 });
+  } catch (error) {
+    return handleError(error);
+  }
+}

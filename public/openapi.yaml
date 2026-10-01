@@ -177,14 +177,17 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [status, canEdit, items]
+                required: [status, canEdit, hasDraw, items]
                 properties:
                   status:
                     type: string
                     enum: [DRAFT, IN_PROGRESS, FINISHED]
                   canEdit:
                     type: boolean
-                    description: False after draw generation, even while the tournament remains DRAFT.
+                    description: True while the tournament is in DRAFT, including after a draw.
+                  hasDraw:
+                    type: boolean
+                    description: Whether a draw currently exists.
                   items:
                     type: array
                     items:
@@ -200,7 +203,7 @@ paths:
     post:
       tags: [Tournaments]
       summary: Ajouter un participant au tournoi
-      description: Réservé à l'administrateur tant que le tournoi est en DRAFT.
+      description: Réservé à l'administrateur tant que le tournoi est en DRAFT. L'ajout supprime le tableau courant s'il existe.
       operationId: addTournamentParticipant
       x-implementation-status: implemented
       parameters:
@@ -235,7 +238,7 @@ paths:
     patch:
       tags: [Tournaments]
       summary: Modifier la tête de série d'un participant
-      description: Réservé à l'administrateur tant que le tournoi est en DRAFT. Une valeur null retire la tête de série.
+      description: Réservé à l'administrateur tant que le tournoi est en DRAFT. Une valeur null retire la tête de série ; toute modification invalide le tableau courant.
       operationId: updateTournamentParticipantSeed
       x-implementation-status: implemented
       parameters:
@@ -270,6 +273,32 @@ paths:
           $ref: "#/components/responses/Conflict"
         "500":
           $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Tournaments]
+      summary: Retirer un participant du tournoi
+      description: Réservé à l'administrateur tant que le tournoi est en DRAFT. Le tableau courant est supprimé s'il existe.
+      operationId: removeTournamentParticipant
+      x-implementation-status: implemented
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - in: path
+          name: participantId
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Participant retiré
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /tournaments/{id}/draw:
     post:
@@ -277,7 +306,7 @@ paths:
       summary: Générer ou regénérer le tableau
       description: Réservé à l'administrateur tant que le tournoi est en DRAFT.
       operationId: drawTournament
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: "#/components/parameters/ResourceId"
       responses:
@@ -339,7 +368,7 @@ paths:
       summary: Activer le tournoi
       description: Réservé à l'administrateur ; fait passer le tournoi à IN_PROGRESS.
       operationId: activateTournament
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: "#/components/parameters/ResourceId"
       responses:

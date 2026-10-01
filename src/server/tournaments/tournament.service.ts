@@ -1,4 +1,5 @@
 import type {
+  TournamentMatch,
   TournamentRepository,
   TournamentPage,
   TournamentParticipant,
@@ -57,5 +58,23 @@ export class TournamentService {
       participantId,
       seed,
     );
+  }
+
+  /** Removes a participant from a tournament still in preparation. */
+  removeParticipant(
+    tournamentId: string,
+    participantId: string,
+  ): Promise<void> {
+    return this.repository.removeParticipant(tournamentId, participantId);
+  }
+
+  /** Generates (or regenerates) the tournament's bracket for the given actor. */
+  draw(tournamentId: string, actorId: string): Promise<TournamentMatch[]> {
+    return this.repository.draw(tournamentId, actorId);
+  }
+
+  /** Activates the tournament after its draw. */
+  activate(tournamentId: string, actorId: string): Promise<TournamentSummary> {
+    return this.repository.activate(tournamentId, actorId);
   }
 }

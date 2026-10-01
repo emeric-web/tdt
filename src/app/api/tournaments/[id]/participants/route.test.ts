@@ -39,6 +39,7 @@ describe("/api/tournaments/[id]/participants", () => {
     listParticipants.mockResolvedValue({
       status: "DRAFT",
       canEdit: true,
+      hasDraw: false,
       items: [{ id: "participant-1", userId: "user-1", name: "Ada", seed: 1 }],
     });
 
@@ -51,6 +52,7 @@ describe("/api/tournaments/[id]/participants", () => {
     expect(await response.json()).toEqual({
       status: "DRAFT",
       canEdit: true,
+      hasDraw: false,
       items: [{ id: "participant-1", userId: "user-1", name: "Ada", seed: 1 }],
     });
     expect(listParticipants).toHaveBeenCalledWith("tournament-1");

@@ -7,12 +7,16 @@ import {
   isErrorResponse,
   isMemberPage,
   isParticipantsResult,
+  isTournamentMatchResult,
 } from "./participants.type-guards";
 import type {
   Member,
   Participant,
   ParticipantsResult,
 } from "./participants.type";
+import { Bracket } from "@/components/bracket/Bracket";
+import { groupByRound } from "@/lib/bracket";
+import type { MatchDto } from "@/types/bracket";
 
 export function ManageParticipants({ tournamentId }: { tournamentId: string }) {
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -21,11 +25,13 @@ export function ManageParticipants({ tournamentId }: { tournamentId: string }) {
   const [memberPageCount, setMemberPageCount] = useState(1);
   const [status, setStatus] = useState<ParticipantsResult["status"]>("DRAFT");
   const [canEdit, setCanEdit] = useState(false);
+  const [hasDraw, setHasDraw] = useState(false);
   const [seeds, setSeeds] = useState<Record<string, string>>({});
   const [selectedUserId, setSelectedUserId] = useState("");
   const [newSeed, setNewSeed] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [previewMatches, setPreviewMatches] = useState<MatchDto[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reloadCount, setReloadCount] = useState(0);
@@ -67,6 +73,7 @@ export function ManageParticipants({ tournamentId }: { tournamentId: string }) {
           setParticipants(participantsResult.items);
           setStatus(participantsResult.status);
           setCanEdit(participantsResult.canEdit);
+          setHasDraw(participantsResult.hasDraw);
           setSeeds(
             Object.fromEntries(
               participantsResult.items.map((participant) => [
@@ -163,7 +170,13 @@ export function ManageParticipants({ tournamentId }: { tournamentId: string }) {
           ...(newSeed ? { seed: Number(newSeed) } : {}),
         },
       );
-      setSuccessMessage("Le membre a été inscrit au tournoi.");
+      setPreviewMatches(null);
+      setHasDraw(false);
+      setSuccessMessage(
+        hasDraw
+          ? "Le membre a été inscrit. Le tableau a été supprimé ; relancez le tirage."
+          : "Le membre a été inscrit au tournoi.",
+      );
       setNewSeed("");
       refresh();
     } catch (error) {
@@ -190,10 +203,166 @@ export function ManageParticipants({ tournamentId }: { tournamentId: string }) {
         "PATCH",
         { seed: value === "" ? null : Number(value) },
       );
-      setSuccessMessage("La tête de série a été mise à jour.");
+      setPreviewMatches(null);
+      setHasDraw(false);
+      setSuccessMessage(
+        hasDraw
+          ? "La tête de série a été mise à jour. Le tableau a été supprimé ; relancez le tirage."
+          : "La tête de série a été mise à jour.",
+      );
       refresh();
     } catch (error) {
       console.error("Unable to update participant seed.", error);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Impossible de contacter le serveur. Réessayez.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleRemoveParticipant(participantId: string) {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(
+        `/api/tournaments/${tournamentId}/participants/${participantId}`,
+        { method: "DELETE" },
+      );
+
+      if (!response.ok) {
+        const result: unknown = await response.json();
+        throw new Error(
+          isErrorResponse(result)
+            ? result.error.message
+            : "Impossible de retirer ce participant.",
+        );
+      }
+
+      setPreviewMatches(null);
+      setHasDraw(false);
+      setSuccessMessage(
+        hasDraw
+          ? "Le participant a été retiré. Le tableau a été supprimé ; relancez le tirage."
+          : "Le participant a été retiré.",
+      );
+      refresh();
+    } catch (error) {
+      console.error("Unable to remove tournament participant.", error);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Impossible de contacter le serveur. Réessayez.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleDraw() {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/draw`, {
+        method: "POST",
+      });
+      const result: unknown = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          isErrorResponse(result)
+            ? result.error.message
+            : "Impossible de générer le tableau.",
+        );
+      }
+
+      if (!isTournamentMatchResult(result)) {
+        throw new Error("La réponse du tirage a un format invalide.");
+      }
+
+      const participantsByUserId = new Map(
+        participants.map((participant) => [participant.userId, participant]),
+      );
+      const toPlayer = (userId: string | null) => {
+        if (userId === null) {
+          return null;
+        }
+
+        const participant = participantsByUserId.get(userId);
+        if (!participant) {
+          throw new Error("Le tableau contient un participant inconnu.");
+        }
+
+        return { id: userId, name: participant.name };
+      };
+
+      setPreviewMatches(
+        result.map((match) => ({
+          id: match.id,
+          round: match.round,
+          position: match.position,
+          player1: toPlayer(match.player1Id),
+          player2: toPlayer(match.player2Id),
+          status: match.winnerId ? "VALIDATED" : "PENDING",
+          scoreStatus: "NONE",
+          winnerId: match.winnerId,
+          declaredById: null,
+          score: null,
+          proposedScore: null,
+          isBye: match.isBye,
+          scheduledAt: null,
+          court: null,
+        })),
+      );
+      setHasDraw(true);
+      setSuccessMessage("Le tableau a été généré.");
+      refresh();
+    } catch (error) {
+      console.error("Unable to draw the tournament bracket.", error);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Impossible de contacter le serveur. Réessayez.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleActivate() {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(
+        `/api/tournaments/${tournamentId}/activate`,
+        {
+          method: "POST",
+        },
+      );
+      const result: unknown = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          isErrorResponse(result)
+            ? result.error.message
+            : "Impossible d'activer le tournoi.",
+        );
+      }
+
+      setStatus("IN_PROGRESS");
+      setCanEdit(false);
+      setSuccessMessage("Le tournoi a été activé.");
+      refresh();
+    } catch (error) {
+      console.error("Unable to activate tournament.", error);
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -214,8 +383,8 @@ export function ManageParticipants({ tournamentId }: { tournamentId: string }) {
       {successMessage && <p role="status">{successMessage}</p>}
       {!isLoading && !canManage && (
         <p>
-          Les inscriptions et têtes de série sont verrouillées après le tirage
-          ou l’activation du tournoi.
+          Les inscriptions et têtes de série sont verrouillées après
+          l’activation du tournoi.
         </p>
       )}
       {!isLoading && canManage && (
@@ -330,6 +499,15 @@ export function ManageParticipants({ tournamentId }: { tournamentId: string }) {
                     >
                       Enregistrer la tête de série
                     </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void handleRemoveParticipant(participant.id)
+                      }
+                      disabled={isSubmitting}
+                    >
+                      Retirer le participant
+                    </button>
                   </div>
                 )}
               </li>
@@ -337,6 +515,32 @@ export function ManageParticipants({ tournamentId }: { tournamentId: string }) {
           </ul>
         )}
       </section>
+      {canManage && (
+        <>
+          <button
+            type="button"
+            onClick={() => void handleDraw()}
+            disabled={isSubmitting || isLoading || participants.length < 2}
+          >
+            {hasDraw ? "Regénérer le tableau" : "Générer le tableau"}
+          </button>
+          {hasDraw && (
+            <button
+              type="button"
+              onClick={() => void handleActivate()}
+              disabled={isSubmitting || isLoading}
+            >
+              Activer le tournoi
+            </button>
+          )}
+        </>
+      )}
+      {previewMatches && (
+        <section aria-labelledby="bracket-preview-heading">
+          <h2 id="bracket-preview-heading">Aperçu du tableau</h2>
+          <Bracket rounds={groupByRound(previewMatches)} />
+        </section>
+      )}
       <button
         type="button"
         onClick={refresh}

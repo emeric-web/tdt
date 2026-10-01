@@ -8,7 +8,20 @@ export type Participant = {
 export type ParticipantsResult = {
   status: "DRAFT" | "IN_PROGRESS" | "FINISHED";
   canEdit: boolean;
+  hasDraw: boolean;
   items: Participant[];
+};
+
+export type TournamentMatchResult = {
+  id: string;
+  round: number;
+  position: number;
+  player1Id: string | null;
+  player2Id: string | null;
+  winnerId: string | null;
+  isBye: boolean;
+  nextMatchId: string | null;
+  nextSlot: number | null;
 };
 
 export type Member = {

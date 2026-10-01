@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ForbiddenError } from "@/server/errors/app-error";
 
-const { updateParticipantSeed, requireUserWithRole } = vi.hoisted(() => ({
-  updateParticipantSeed: vi.fn(),
-  requireUserWithRole: vi.fn(),
-}));
+const { updateParticipantSeed, removeParticipant, requireUserWithRole } =
+  vi.hoisted(() => ({
+    updateParticipantSeed: vi.fn(),
+    removeParticipant: vi.fn(),
+    requireUserWithRole: vi.fn(),
+  }));
 
 vi.mock("@/server/auth/authorization", () => ({
   requireUserWithRole,
@@ -18,10 +20,11 @@ vi.mock("@/server/tournaments/tournament.repository", () => ({
 vi.mock("@/server/tournaments/tournament.service", () => ({
   TournamentService: class {
     updateParticipantSeed = updateParticipantSeed;
+    removeParticipant = removeParticipant;
   },
 }));
 
-import { PATCH } from "./route";
+import { DELETE, PATCH } from "./route";
 
 const context = {
   params: Promise.resolve({
@@ -81,5 +84,39 @@ describe("PATCH /api/tournaments/[id]/participants/[participantId]", () => {
 
     expect(response.status).toBe(403);
     expect(updateParticipantSeed).not.toHaveBeenCalled();
+  });
+
+  it("removes a participant for administrators", async () => {
+    requireUserWithRole.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    removeParticipant.mockResolvedValue(undefined);
+
+    const response = await DELETE(
+      new Request(
+        "http://localhost/api/tournaments/tournament-1/participants/participant-1",
+        { method: "DELETE" },
+      ),
+      context,
+    );
+
+    expect(response.status).toBe(204);
+    expect(removeParticipant).toHaveBeenCalledWith(
+      "tournament-1",
+      "participant-1",
+    );
+  });
+
+  it("rejects members before removing a participant", async () => {
+    requireUserWithRole.mockRejectedValue(new ForbiddenError());
+
+    const response = await DELETE(
+      new Request(
+        "http://localhost/api/tournaments/tournament-1/participants/participant-1",
+        { method: "DELETE" },
+      ),
+      context,
+    );
+
+    expect(response.status).toBe(403);
+    expect(removeParticipant).not.toHaveBeenCalled();
   });
 });

@@ -25,6 +25,11 @@ export function computeBracketSize(participantCount: number): number {
   return size;
 }
 
+/** Returns the number of rounds a bracket of the given size requires. */
+export function computeRoundCount(bracketSize: number): number {
+  return Math.log2(bracketSize);
+}
+
 /**
  * Generates the first-round matches of a single-elimination bracket. Seeds are placed
  * according to the standard bracket order, byes go first to the best seeds then to random

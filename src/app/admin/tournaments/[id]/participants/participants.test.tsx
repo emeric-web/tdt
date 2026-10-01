@@ -8,7 +8,8 @@ const participantPage = (
   items: unknown[],
   status: "DRAFT" | "IN_PROGRESS" | "FINISHED" = "DRAFT",
   canEdit = status === "DRAFT",
-) => Response.json({ status, canEdit, items });
+  hasDraw = false,
+) => Response.json({ status, canEdit, hasDraw, items });
 const memberPage = (items: unknown[]) =>
   Response.json({ items, page: 1, pageSize: 100, total: items.length });
 
@@ -156,6 +157,109 @@ describe("ManageParticipants", () => {
     );
   });
 
+  it("disables the draw button with fewer than two participants", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          participantPage([
+            {
+              id: "participant-1",
+              tournamentId: "tournament-1",
+              userId: "user-1",
+              name: "Ada Lovelace",
+              seed: null,
+            },
+          ]),
+        )
+        .mockResolvedValueOnce(
+          memberPage([
+            {
+              id: "user-3",
+              name: "Grace Hopper",
+              email: "grace@example.test",
+            },
+          ]),
+        ),
+    );
+
+    render(<ManageParticipants tournamentId="tournament-1" />);
+
+    expect(
+      await screen.findByRole("button", { name: "Générer le tableau" }),
+    ).toBeDisabled();
+  });
+
+  it("draws the bracket and refreshes the participant list", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        participantPage([
+          {
+            id: "participant-1",
+            tournamentId: "tournament-1",
+            userId: "user-1",
+            name: "Ada Lovelace",
+            seed: null,
+          },
+          {
+            id: "participant-2",
+            tournamentId: "tournament-1",
+            userId: "user-2",
+            name: "Alan Turing",
+            seed: null,
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        memberPage([
+          {
+            id: "user-3",
+            name: "Grace Hopper",
+            email: "grace@example.test",
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        Response.json([
+          {
+            id: "match-1",
+            round: 1,
+            position: 0,
+            player1Id: "user-1",
+            player2Id: "user-2",
+            winnerId: null,
+            isBye: false,
+            nextMatchId: null,
+            nextSlot: null,
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(participantPage([], "DRAFT", true, true))
+      .mockResolvedValueOnce(memberPage([]));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<ManageParticipants tournamentId="tournament-1" />);
+
+    const drawButton = await screen.findByRole("button", {
+      name: "Générer le tableau",
+    });
+    expect(drawButton).toBeEnabled();
+    await user.click(drawButton);
+
+    expect(await screen.findByText("Le tableau a été généré.")).toBeVisible();
+    expect(await screen.findByText("Aperçu du tableau")).toBeVisible();
+    expect(screen.getByText("Ada Lovelace")).toBeVisible();
+    expect(screen.getByText("Alan Turing")).toBeVisible();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/tournaments/tournament-1/draw",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("hides registration and seed editing after the tournament leaves DRAFT", async () => {
     vi.stubGlobal(
       "fetch",
@@ -183,7 +287,7 @@ describe("ManageParticipants", () => {
 
     expect(
       await screen.findByText(
-        "Les inscriptions et têtes de série sont verrouillées après le tirage ou l’activation du tournoi.",
+        "Les inscriptions et têtes de série sont verrouillées après l’activation du tournoi.",
       ),
     ).toBeVisible();
     expect(
@@ -194,7 +298,7 @@ describe("ManageParticipants", () => {
     ).toBeNull();
   });
 
-  it("locks editing after the draw while the tournament remains DRAFT", async () => {
+  it("keeps editing available after the draw while the tournament remains DRAFT", async () => {
     vi.stubGlobal(
       "fetch",
       vi
@@ -211,25 +315,191 @@ describe("ManageParticipants", () => {
               },
             ],
             "DRAFT",
-            false,
+            true,
+            true,
           ),
         )
-        .mockResolvedValueOnce(memberPage([])),
+        .mockResolvedValueOnce(
+          memberPage([
+            {
+              id: "user-2",
+              name: "Alan Turing",
+              email: "alan@example.test",
+            },
+          ]),
+        ),
     );
 
     render(<ManageParticipants tournamentId="tournament-1" />);
 
     expect(
+      await screen.findByRole("button", { name: "Inscrire le membre" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Enregistrer la tête de série" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Retirer le participant" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Regénérer le tableau" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Activer le tournoi" }),
+    ).toBeVisible();
+  });
+
+  it("removes a participant and invalidates the current draw", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        participantPage(
+          [
+            {
+              id: "participant-1",
+              tournamentId: "tournament-1",
+              userId: "user-1",
+              name: "Ada Lovelace",
+              seed: null,
+            },
+            {
+              id: "participant-2",
+              tournamentId: "tournament-1",
+              userId: "user-2",
+              name: "Alan Turing",
+              seed: null,
+            },
+          ],
+          "DRAFT",
+          true,
+          true,
+        ),
+      )
+      .mockResolvedValueOnce(memberPage([]))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(
+        participantPage(
+          [
+            {
+              id: "participant-2",
+              tournamentId: "tournament-1",
+              userId: "user-2",
+              name: "Alan Turing",
+              seed: null,
+            },
+          ],
+          "DRAFT",
+          true,
+          false,
+        ),
+      )
+      .mockResolvedValueOnce(memberPage([]));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<ManageParticipants tournamentId="tournament-1" />);
+    const removeButtons = await screen.findAllByRole("button", {
+      name: "Retirer le participant",
+    });
+    await user.click(removeButtons[0]);
+
+    expect(
       await screen.findByText(
-        "Les inscriptions et têtes de série sont verrouillées après le tirage ou l’activation du tournoi.",
+        "Le participant a été retiré. Le tableau a été supprimé ; relancez le tirage.",
+      ),
+    ).toBeVisible();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/tournaments/tournament-1/participants/participant-1",
+      { method: "DELETE" },
+    );
+    expect(
+      await screen.findByRole("button", { name: "Générer le tableau" }),
+    ).toBeVisible();
+  });
+
+  it("activates the tournament only after an administrator clicks the button", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        participantPage(
+          [
+            {
+              id: "participant-1",
+              tournamentId: "tournament-1",
+              userId: "user-1",
+              name: "Ada Lovelace",
+              seed: null,
+            },
+            {
+              id: "participant-2",
+              tournamentId: "tournament-1",
+              userId: "user-2",
+              name: "Alan Turing",
+              seed: null,
+            },
+          ],
+          "DRAFT",
+          true,
+          true,
+        ),
+      )
+      .mockResolvedValueOnce(memberPage([]))
+      .mockResolvedValueOnce(
+        Response.json({
+          id: "tournament-1",
+          name: "Club Open",
+          startDate: null,
+          status: "IN_PROGRESS",
+          finalSetSuperTiebreak: false,
+        }),
+      )
+      .mockResolvedValueOnce(
+        participantPage(
+          [
+            {
+              id: "participant-1",
+              tournamentId: "tournament-1",
+              userId: "user-1",
+              name: "Ada Lovelace",
+              seed: null,
+            },
+            {
+              id: "participant-2",
+              tournamentId: "tournament-1",
+              userId: "user-2",
+              name: "Alan Turing",
+              seed: null,
+            },
+          ],
+          "IN_PROGRESS",
+          false,
+          true,
+        ),
+      )
+      .mockResolvedValueOnce(memberPage([]));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<ManageParticipants tournamentId="tournament-1" />);
+    await user.click(
+      await screen.findByRole("button", { name: "Activer le tournoi" }),
+    );
+
+    expect(await screen.findByText("Le tournoi a été activé.")).toBeVisible();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/tournaments/tournament-1/activate",
+      { method: "POST" },
+    );
+    expect(
+      await screen.findByText(
+        "Les inscriptions et têtes de série sont verrouillées après l’activation du tournoi.",
       ),
     ).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "Enregistrer la tête de série" }),
+      screen.queryByRole("button", { name: "Activer le tournoi" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Inscrire le membre" }),
-    ).toBeNull();
   });
 
   it("paginates available members", async () => {
