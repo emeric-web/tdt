@@ -6,8 +6,12 @@ const { transaction, $transaction, findMany, findUnique } = vi.hoisted(() => {
   const transaction = {
     match: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       updateMany: vi.fn(),
       findUniqueOrThrow: vi.fn(),
+    },
+    tournament: {
+      updateMany: vi.fn(),
     },
   };
   return {
@@ -236,6 +240,212 @@ describe("PrismaMatchRepository.declare", () => {
         status: "DECLARED",
         version: { increment: 1 },
       },
+    });
+  });
+
+  describe("PrismaMatchRepository.confirm", () => {
+    const declaredScore = [
+      { p1: 4, p2: 6 },
+      { p1: 6, p2: 3 },
+      { p1: 4, p2: 6 },
+    ];
+
+    function declaredMatch(overrides: Record<string, unknown> = {}) {
+      return {
+        id: "match-1",
+        tournamentId: "tournament-1",
+        round: 1,
+        position: 0,
+        status: "DECLARED",
+        scoreStatus: "DECLARED",
+        isBye: false,
+        player1Id: "player-1",
+        player2Id: "player-2",
+        declaredById: "player-1",
+        declaredWinnerId: "player-2",
+        declaredScore,
+        version: 3,
+        nextMatchId: "final-match",
+        nextSlot: 1,
+        tournament: {
+          status: "IN_PROGRESS",
+          finalSetSuperTiebreak: false,
+          matches: [{ id: "final-match" }],
+        },
+        ...overrides,
+      };
+    }
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      $transaction.mockImplementation((callback) => callback(transaction));
+      transaction.match.findUnique.mockResolvedValue(declaredMatch());
+      transaction.match.findFirst.mockResolvedValue(null);
+      transaction.match.updateMany.mockResolvedValue({ count: 1 });
+      transaction.tournament.updateMany.mockResolvedValue({ count: 1 });
+      transaction.match.findUniqueOrThrow.mockResolvedValue({
+        id: "match-1",
+        winnerId: "player-2",
+        score: declaredScore,
+        status: "VALIDATED",
+        scoreStatus: "VALIDATED",
+      });
+    });
+
+    it("validates the result and advances the winner in one transaction", async () => {
+      await expect(
+        new PrismaMatchRepository().confirm("match-1", "player-2"),
+      ).resolves.toMatchObject({
+        id: "match-1",
+        winnerId: "player-2",
+        score: declaredScore,
+        status: "VALIDATED",
+        scoreStatus: "VALIDATED",
+      });
+
+      expect(transaction.match.updateMany).toHaveBeenNthCalledWith(1, {
+        where: {
+          id: "match-1",
+          status: "DECLARED",
+          scoreStatus: "DECLARED",
+          version: 3,
+          declaredById: { not: "player-2" },
+          tournament: { status: "IN_PROGRESS" },
+        },
+        data: {
+          winnerId: "player-2",
+          score: declaredScore,
+          status: "VALIDATED",
+          scoreStatus: "VALIDATED",
+          version: { increment: 1 },
+        },
+      });
+      expect(transaction.match.updateMany).toHaveBeenNthCalledWith(2, {
+        where: {
+          id: "final-match",
+          status: "PENDING",
+          player1Id: null,
+        },
+        data: { player1Id: "player-2", version: { increment: 1 } },
+      });
+      expect(transaction.tournament.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("advances a winner to the second slot when configured", async () => {
+      transaction.match.findUnique.mockResolvedValue(
+        declaredMatch({ nextSlot: 2 }),
+      );
+
+      await new PrismaMatchRepository().confirm("match-1", "player-2");
+
+      expect(transaction.match.updateMany).toHaveBeenNthCalledWith(2, {
+        where: {
+          id: "final-match",
+          status: "PENDING",
+          player2Id: null,
+        },
+        data: { player2Id: "player-2", version: { increment: 1 } },
+      });
+    });
+
+    it("closes the tournament when its final match is validated", async () => {
+      transaction.match.findUnique.mockResolvedValue(
+        declaredMatch({
+          round: 2,
+          nextMatchId: null,
+          nextSlot: null,
+          tournament: {
+            status: "IN_PROGRESS",
+            finalSetSuperTiebreak: false,
+            matches: [{ id: "match-1" }],
+          },
+        }),
+      );
+
+      await new PrismaMatchRepository().confirm("match-1", "player-2");
+
+      expect(transaction.match.findFirst).toHaveBeenCalledWith({
+        where: {
+          tournamentId: "tournament-1",
+          id: { not: "match-1" },
+          status: { not: "VALIDATED" },
+        },
+        select: { id: true },
+      });
+      expect(transaction.tournament.updateMany).toHaveBeenCalledWith({
+        where: { id: "tournament-1", status: "IN_PROGRESS" },
+        data: { status: "FINISHED" },
+      });
+      expect(transaction.match.updateMany).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not close a tournament while another match is unfinished", async () => {
+      transaction.match.findUnique.mockResolvedValue(
+        declaredMatch({
+          round: 2,
+          nextMatchId: null,
+          nextSlot: null,
+          tournament: {
+            status: "IN_PROGRESS",
+            finalSetSuperTiebreak: false,
+            matches: [{ id: "match-1" }],
+          },
+        }),
+      );
+      transaction.match.findFirst.mockResolvedValue({ id: "unfinished-match" });
+
+      await expect(
+        new PrismaMatchRepository().confirm("match-1", "player-2"),
+      ).rejects.toThrow(ConflictError);
+
+      expect(transaction.match.updateMany).not.toHaveBeenCalled();
+      expect(transaction.tournament.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("does not validate a result twice after a concurrent confirmation", async () => {
+      transaction.match.updateMany.mockResolvedValueOnce({ count: 0 });
+
+      await expect(
+        new PrismaMatchRepository().confirm("match-1", "player-2"),
+      ).rejects.toThrow(ConflictError);
+
+      expect(transaction.match.updateMany).toHaveBeenCalledTimes(1);
+      expect(transaction.tournament.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("rejects advancement if the winner's next-round slot is no longer empty", async () => {
+      transaction.match.updateMany
+        .mockResolvedValueOnce({ count: 1 })
+        .mockResolvedValueOnce({ count: 0 });
+
+      await expect(
+        new PrismaMatchRepository().confirm("match-1", "player-2"),
+      ).rejects.toThrow(ConflictError);
+
+      expect(transaction.match.findUniqueOrThrow).not.toHaveBeenCalled();
+      expect(transaction.tournament.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("rejects finalization if the tournament status changed concurrently", async () => {
+      transaction.match.findUnique.mockResolvedValue(
+        declaredMatch({
+          round: 2,
+          nextMatchId: null,
+          nextSlot: null,
+          tournament: {
+            status: "IN_PROGRESS",
+            finalSetSuperTiebreak: false,
+            matches: [{ id: "match-1" }],
+          },
+        }),
+      );
+      transaction.tournament.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        new PrismaMatchRepository().confirm("match-1", "player-2"),
+      ).rejects.toThrow(ConflictError);
+
+      expect(transaction.match.findUniqueOrThrow).not.toHaveBeenCalled();
     });
   });
 

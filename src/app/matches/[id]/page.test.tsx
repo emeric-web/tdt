@@ -55,6 +55,7 @@ const details = {
     scoreStatus: "NONE" as const,
     winnerId: null,
     declaredById: null,
+    declaredWinnerId: null,
     score: null,
     proposedScore: null,
     isBye: false,
@@ -122,6 +123,86 @@ describe("MatchPage", () => {
     expect(
       screen.queryByRole("button", { name: "Déclarer le résultat" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("offers confirmation to the opponent who did not declare the result", async () => {
+    getDetails.mockResolvedValue({
+      ...details,
+      match: {
+        ...details.match,
+        status: "DECLARED",
+        scoreStatus: "DECLARED",
+        declaredById: "player-1",
+        declaredWinnerId: "player-2",
+        proposedScore: [
+          { p1: 4, p2: 6 },
+          { p1: 6, p2: 3 },
+          { p1: 4, p2: 6 },
+        ],
+      },
+    });
+    vi.mocked(getServerSession).mockResolvedValue({
+      expires: "2099-01-01T00:00:00.000Z",
+      user: {
+        id: "player-2",
+        name: "Grace Hopper",
+        email: "grace@example.test",
+        role: "MEMBER",
+      },
+    });
+
+    const page = await MatchPage({
+      params: Promise.resolve({ id: "match-1" }),
+    });
+
+    render(page);
+
+    expect(
+      screen.getByRole("button", { name: "Confirmer le résultat" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Déclarer le résultat" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not offer confirmation to the player who declared the result", async () => {
+    getDetails.mockResolvedValue({
+      ...details,
+      match: {
+        ...details.match,
+        status: "DECLARED",
+        scoreStatus: "DECLARED",
+        declaredById: "player-1",
+      },
+    });
+
+    const page = await MatchPage({
+      params: Promise.resolve({ id: "match-1" }),
+    });
+
+    render(page);
+
+    expect(
+      screen.queryByRole("button", { name: "Confirmer le résultat" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("indicates that the tournament is finished", async () => {
+    getDetails.mockResolvedValue({
+      ...details,
+      tournamentStatus: "FINISHED",
+      match: { ...details.match, status: "VALIDATED" },
+    });
+
+    const page = await MatchPage({
+      params: Promise.resolve({ id: "match-1" }),
+    });
+
+    render(page);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Le tournoi est terminé.",
+    );
   });
 
   it("redirects anonymous visitors to the login page", async () => {

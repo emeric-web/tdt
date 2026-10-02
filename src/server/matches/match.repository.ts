@@ -1,7 +1,11 @@
 import type { Match } from "@/generated/prisma/client";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
-import { ConflictError, NotFoundError } from "@/server/errors/app-error";
+import {
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+} from "@/server/errors/app-error";
 import type {
   DeclareResultInput,
   ScheduleMatchInput,
@@ -9,6 +13,7 @@ import type {
 import {
   guardDeclaredWinner,
   guardMatchDeclaration,
+  guardMatchConfirmation,
   guardMatchScheduling,
 } from "@/server/matches/match.rules";
 import { scoreSchema, validateScore } from "@/server/score/score.validator";
@@ -113,6 +118,7 @@ export interface MatchRepository {
     actorId: string,
     data: DeclareResultInput,
   ): Promise<DeclaredMatch>;
+  confirm(id: string, actorId: string): Promise<DeclaredMatch>;
 }
 
 export class PrismaMatchRepository implements MatchRepository {
@@ -377,6 +383,197 @@ export class PrismaMatchRepository implements MatchRepository {
 
       return transaction.match.findUniqueOrThrow({
         where: { id },
+        select: {
+          id: true,
+          tournamentId: true,
+          round: true,
+          position: true,
+          winnerId: true,
+          declaredById: true,
+          declaredWinnerId: true,
+          declaredScore: true,
+          proposedWinnerId: true,
+          scoreStatus: true,
+          status: true,
+          resultKind: true,
+          score: true,
+          proposedScore: true,
+          isBye: true,
+          scheduledAt: true,
+          court: true,
+        },
+      });
+    });
+  }
+
+  /** Confirms a declared result, advances its winner, and closes a validated final atomically. */
+  async confirm(id: string, actorId: string): Promise<DeclaredMatch> {
+    return prisma.$transaction(async (transaction) => {
+      const match = await transaction.match.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          tournamentId: true,
+          round: true,
+          position: true,
+          status: true,
+          scoreStatus: true,
+          isBye: true,
+          player1Id: true,
+          player2Id: true,
+          declaredById: true,
+          declaredWinnerId: true,
+          declaredScore: true,
+          version: true,
+          nextMatchId: true,
+          nextSlot: true,
+          tournament: {
+            select: {
+              status: true,
+              finalSetSuperTiebreak: true,
+              matches: {
+                orderBy: [{ round: "desc" }, { position: "asc" }],
+                take: 1,
+                select: { id: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (!match) {
+        throw new NotFoundError("Match introuvable.");
+      }
+
+      guardMatchConfirmation(
+        match.status,
+        match.scoreStatus,
+        match.isBye,
+        match.tournament.status,
+        match.player1Id,
+        match.player2Id,
+        match.declaredById,
+        actorId,
+      );
+
+      if (!match.declaredWinnerId || match.declaredScore === null) {
+        throw new ConflictError("Le résultat déclaré est incomplet.");
+      }
+
+      const score = parseStoredScore(match.declaredScore);
+      if (score === null) {
+        throw new ConflictError("Le résultat déclaré est incomplet.");
+      }
+      let scoreWinner: ReturnType<typeof validateScore>;
+      try {
+        scoreWinner = validateScore(
+          score,
+          match.tournament.finalSetSuperTiebreak,
+        );
+      } catch (error) {
+        if (error instanceof BadRequestError) {
+          throw new Error("Le score déclaré du match est invalide.", {
+            cause: error,
+          });
+        }
+
+        throw error;
+      }
+      const scoreWinnerId =
+        scoreWinner === "p1" ? match.player1Id : match.player2Id;
+      if (
+        (match.declaredWinnerId !== match.player1Id &&
+          match.declaredWinnerId !== match.player2Id) ||
+        match.declaredWinnerId !== scoreWinnerId
+      ) {
+        throw new ConflictError(
+          "Le résultat déclaré ne correspond plus aux joueurs du match.",
+        );
+      }
+
+      const finalMatchId = match.tournament.matches[0]?.id;
+      const isFinal = finalMatchId === match.id && match.nextMatchId === null;
+      if (isFinal) {
+        const unfinishedMatch = await transaction.match.findFirst({
+          where: {
+            tournamentId: match.tournamentId,
+            id: { not: match.id },
+            status: { not: "VALIDATED" },
+          },
+          select: { id: true },
+        });
+        if (unfinishedMatch) {
+          throw new ConflictError(
+            "Le tournoi contient encore des matchs non validés.",
+          );
+        }
+      }
+
+      const validated = await transaction.match.updateMany({
+        where: {
+          id: match.id,
+          status: "DECLARED",
+          scoreStatus: "DECLARED",
+          version: match.version,
+          declaredById: { not: actorId },
+          tournament: { status: "IN_PROGRESS" },
+        },
+        data: {
+          winnerId: match.declaredWinnerId,
+          score,
+          status: "VALIDATED",
+          scoreStatus: "VALIDATED",
+          version: { increment: 1 },
+        },
+      });
+
+      if (validated.count !== 1) {
+        throw new ConflictError(
+          "Le match a changé. Rechargez la page avant de réessayer.",
+        );
+      }
+
+      if (isFinal) {
+        const finished = await transaction.tournament.updateMany({
+          where: { id: match.tournamentId, status: "IN_PROGRESS" },
+          data: { status: "FINISHED" },
+        });
+        if (finished.count !== 1) {
+          throw new ConflictError(
+            "Le tournoi a changé. Rechargez la page avant de réessayer.",
+          );
+        }
+      } else {
+        const nextMatchId = match.nextMatchId;
+        const nextSlot = match.nextSlot;
+        if (nextMatchId === null || (nextSlot !== 1 && nextSlot !== 2)) {
+          throw new ConflictError(
+            "Le match n’est pas relié au tour suivant du tableau.",
+          );
+        }
+
+        const nextMatchWhere =
+          nextSlot === 1
+            ? { id: nextMatchId, status: "PENDING" as const, player1Id: null }
+            : { id: nextMatchId, status: "PENDING" as const, player2Id: null };
+        const nextMatchData =
+          nextSlot === 1
+            ? { player1Id: match.declaredWinnerId, version: { increment: 1 } }
+            : { player2Id: match.declaredWinnerId, version: { increment: 1 } };
+        const advanced = await transaction.match.updateMany({
+          where: nextMatchWhere,
+          data: nextMatchData,
+        });
+
+        if (advanced.count !== 1) {
+          throw new ConflictError(
+            "La place du vainqueur dans le tour suivant a changé.",
+          );
+        }
+      }
+
+      return transaction.match.findUniqueOrThrow({
+        where: { id: match.id },
         select: {
           id: true,
           tournamentId: true,

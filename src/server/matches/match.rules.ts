@@ -1,4 +1,8 @@
-import type { MatchStatus, TournamentStatus } from "@/generated/prisma/enums";
+import type {
+  MatchStatus,
+  ScoreStatus,
+  TournamentStatus,
+} from "@/generated/prisma/enums";
 import {
   BadRequestError,
   ConflictError,
@@ -50,6 +54,45 @@ export function guardDeclaredWinner(
   if (winnerId !== scoreWinnerId) {
     throw new BadRequestError(
       "Le vainqueur indiqué ne correspond pas au score.",
+    );
+  }
+}
+
+export function guardMatchConfirmation(
+  status: MatchStatus,
+  scoreStatus: ScoreStatus,
+  isBye: boolean,
+  tournamentStatus: TournamentStatus,
+  player1Id: string | null,
+  player2Id: string | null,
+  declaredById: string | null,
+  actorId: string,
+): void {
+  if (
+    tournamentStatus !== "IN_PROGRESS" ||
+    isBye ||
+    status !== "DECLARED" ||
+    scoreStatus !== "DECLARED" ||
+    declaredById === null
+  ) {
+    throw new ConflictError("Ce résultat ne peut pas être confirmé.");
+  }
+
+  if (declaredById !== player1Id && declaredById !== player2Id) {
+    throw new ConflictError(
+      "Le résultat a été déclaré par un joueur qui ne participe pas au match.",
+    );
+  }
+
+  if (actorId !== player1Id && actorId !== player2Id) {
+    throw new ForbiddenError(
+      "Seul l’adversaire peut confirmer le résultat de ce match.",
+    );
+  }
+
+  if (actorId === declaredById) {
+    throw new ForbiddenError(
+      "Le joueur ayant déclaré le résultat ne peut pas le confirmer.",
     );
   }
 }

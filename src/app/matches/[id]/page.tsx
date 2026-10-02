@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
 
 import { MatchCard } from "@/components/bracket/MatchCard";
+import { ResultConfirmation } from "@/components/bracket/ResultConfirmation";
 import { ScoreForm } from "@/components/bracket/ScoreForm";
 import { authOptions } from "@/server/auth/auth-options";
 import { NotFoundError } from "@/server/errors/app-error";
@@ -45,6 +46,15 @@ export default async function MatchPage({ params }: PageProps) {
     match.player2 !== null &&
     (match.player1.id === session.user.id ||
       match.player2.id === session.user.id);
+  const canConfirm =
+    session.user.role === "MEMBER" &&
+    details.tournamentStatus === "IN_PROGRESS" &&
+    match.status === "DECLARED" &&
+    match.scoreStatus === "DECLARED" &&
+    match.declaredById !== null &&
+    match.declaredById !== session.user.id &&
+    (match.player1?.id === session.user.id ||
+      match.player2?.id === session.user.id);
 
   return (
     <main>
@@ -57,6 +67,9 @@ export default async function MatchPage({ params }: PageProps) {
       <h1>Votre match</h1>
       <h2>{details.roundLabel}</h2>
       <MatchCard match={match} />
+      {details.tournamentStatus === "FINISHED" && (
+        <p role="status">Le tournoi est terminé.</p>
+      )}
       {canDeclare && match.player1 && match.player2 && (
         <ScoreForm
           matchId={match.id}
@@ -65,6 +78,7 @@ export default async function MatchPage({ params }: PageProps) {
           finalSetSuperTiebreak={details.finalSetSuperTiebreak}
         />
       )}
+      {canConfirm && <ResultConfirmation matchId={match.id} />}
     </main>
   );
 }

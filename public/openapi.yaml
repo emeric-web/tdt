@@ -509,14 +509,14 @@ paths:
     post:
       tags: [Matches]
       summary: Confirmer le résultat
-      description: Réservé à l'autre joueur ; le vainqueur et le score sont validés ensemble.
+      description: Réservé à l'autre joueur ; le vainqueur et le score sont validés ensemble. La validation de la finale clôt le tournoi.
       operationId: confirmMatchResult
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: "#/components/parameters/ResourceId"
       responses:
         "200":
-          description: Résultat validé et vainqueur avancé
+          description: Résultat validé et vainqueur avancé ; le tournoi passe à FINISHED si le match est la finale
           content:
             application/json:
               schema:

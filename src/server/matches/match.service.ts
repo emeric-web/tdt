@@ -36,4 +36,9 @@ export class MatchService {
 
     return this.repository.declare(id, actorId, declaration);
   }
+
+  /** Confirms an opponent's declared result. */
+  confirm(id: string, actorId: string): Promise<DeclaredMatch> {
+    return this.repository.confirm(id, actorId);
+  }
 }

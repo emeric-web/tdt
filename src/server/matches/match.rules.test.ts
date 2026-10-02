@@ -7,6 +7,7 @@ import {
 } from "@/server/errors/app-error";
 import {
   guardDeclaredWinner,
+  guardMatchConfirmation,
   guardMatchDeclaration,
   guardMatchScheduling,
 } from "@/server/matches/match.rules";
@@ -14,6 +15,72 @@ import {
 describe("guardMatchScheduling", () => {
   it("allows pending non-bye matches", () => {
     expect(() => guardMatchScheduling("PENDING", false)).not.toThrow();
+  });
+
+  describe("guardMatchConfirmation", () => {
+    const confirm = (actorId = "player-2") =>
+      guardMatchConfirmation(
+        "DECLARED",
+        "DECLARED",
+        false,
+        "IN_PROGRESS",
+        "player-1",
+        "player-2",
+        "player-1",
+        actorId,
+      );
+
+    it("allows the opponent to confirm a declared result", () => {
+      expect(confirm).not.toThrow();
+    });
+
+    it("rejects confirmation by the player who declared the result", () => {
+      expect(() => confirm("player-1")).toThrow(ForbiddenError);
+    });
+
+    it("rejects confirmation by a non-participant", () => {
+      expect(() => confirm("other-user")).toThrow(ForbiddenError);
+    });
+
+    it("rejects a declaration made by someone outside the match", () => {
+      expect(() =>
+        guardMatchConfirmation(
+          "DECLARED",
+          "DECLARED",
+          false,
+          "IN_PROGRESS",
+          "player-1",
+          "player-2",
+          "other-user",
+          "player-2",
+        ),
+      ).toThrow(ConflictError);
+    });
+
+    it.each([
+      ["PENDING", "NONE", false, "IN_PROGRESS"],
+      ["DECLARED", "DISPUTED", false, "IN_PROGRESS"],
+      ["VALIDATED", "VALIDATED", false, "IN_PROGRESS"],
+      ["DECLARED", "DECLARED", true, "IN_PROGRESS"],
+      ["DECLARED", "DECLARED", false, "DRAFT"],
+      ["DECLARED", "DECLARED", false, "FINISHED"],
+    ] as const)(
+      "rejects unavailable match/tournament state (%s, %s, bye=%s, %s)",
+      (status, scoreStatus, isBye, tournamentStatus) => {
+        expect(() =>
+          guardMatchConfirmation(
+            status,
+            scoreStatus,
+            isBye,
+            tournamentStatus,
+            "player-1",
+            "player-2",
+            "player-1",
+            "player-2",
+          ),
+        ).toThrow(ConflictError);
+      },
+    );
   });
 
   describe("guardMatchDeclaration", () => {

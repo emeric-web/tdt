@@ -20,6 +20,7 @@ describe("MatchService", () => {
       getDetails: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
+      confirm: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -40,6 +41,7 @@ describe("MatchService", () => {
       getDetails: vi.fn(),
       schedule: vi.fn().mockResolvedValue(scheduledMatch),
       declare: vi.fn(),
+      confirm: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -61,6 +63,7 @@ describe("MatchService", () => {
       getDetails: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
+      confirm: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -94,6 +97,7 @@ describe("MatchService", () => {
       getDetails: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn().mockResolvedValue(declaredMatch),
+      confirm: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -123,6 +127,7 @@ describe("MatchService", () => {
       getDetails: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
+      confirm: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -133,5 +138,32 @@ describe("MatchService", () => {
       }),
     ).toThrow();
     expect(repository.declare).not.toHaveBeenCalled();
+  });
+
+  it("delegates result confirmation for the current player", async () => {
+    const confirmedMatch = {
+      id: "match-1",
+      status: "VALIDATED",
+      scoreStatus: "VALIDATED",
+      winnerId: "player-2",
+      score: [
+        { p1: 4, p2: 6 },
+        { p1: 6, p2: 3 },
+        { p1: 4, p2: 6 },
+      ],
+    };
+    const repository = {
+      listUpcomingForPlayer: vi.fn(),
+      getDetails: vi.fn(),
+      schedule: vi.fn(),
+      declare: vi.fn(),
+      confirm: vi.fn().mockResolvedValue(confirmedMatch),
+    };
+    const service = new MatchService(repository);
+
+    await expect(service.confirm("match-1", "player-2")).resolves.toEqual(
+      confirmedMatch,
+    );
+    expect(repository.confirm).toHaveBeenCalledWith("match-1", "player-2");
   });
 });
