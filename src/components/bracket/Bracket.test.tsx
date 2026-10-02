@@ -90,6 +90,40 @@ describe("Bracket", () => {
     expect(screen.getByText("4")).toBeInTheDocument();
   });
 
+  it("shows schedule details and counts matches missing a time or court", () => {
+    render(<Bracket rounds={rounds} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "2 matchs à planifier.",
+    );
+    expect(screen.getAllByText("Horaire à confirmer")).toHaveLength(2);
+    expect(screen.getAllByText(/Terrain à confirmer/)).toHaveLength(2);
+  });
+
+  it("confirms when every playable match has a time and court", () => {
+    const plannedRounds = [
+      {
+        round: 1,
+        matches: [
+          match({
+            player1: { id: "u1", name: "Alice Martin" },
+            player2: { id: "u2", name: "Bruno Petit" },
+            scheduledAt: "2026-10-02T10:00:00.000Z",
+            court: "Court 1",
+          }),
+        ],
+      },
+    ];
+
+    render(<Bracket rounds={plannedRounds} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Tous les matchs sont planifiés.",
+    );
+    expect(screen.getByText(/Court 1/)).toBeInTheDocument();
+    expect(screen.queryByText("Horaire à confirmer")).not.toBeInTheDocument();
+  });
+
   it("keeps every round in the bracket instead of switching between rounds", () => {
     render(<Bracket rounds={rounds} />);
 

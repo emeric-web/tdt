@@ -66,6 +66,11 @@ describe("TournamentDashboard", () => {
       await screen.findByRole("heading", { name: "Autumn Cup" }),
     ).toBeVisible();
     expect(screen.getByText("En cours")).toBeVisible();
+    expect(
+      screen.getByRole("link", {
+        name: "Consulter le tableau et les horaires",
+      }),
+    ).toHaveAttribute("href", "/tournaments/tournament-2");
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       "/api/tournaments?page=2&pageSize=20",

@@ -169,6 +169,11 @@ export function TournamentDashboard({
                         : "Consulter les participants"}
                     </Link>
                   )}
+                  {tournament.status !== "DRAFT" && (
+                    <Link href={`/tournaments/${tournament.id}`}>
+                      Consulter le tableau et les horaires
+                    </Link>
+                  )}
                 </article>
               </li>
             ))}

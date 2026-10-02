@@ -92,7 +92,12 @@ export function MatchCard({ match }: MatchCardProps) {
             {formatDate(match.scheduledAt)}
           </time>
         )}
-        {match.court && <span>· {match.court}</span>}
+        {match.scheduledAt === null && <span>Horaire à confirmer</span>}
+        {match.court ? (
+          <span>· {match.court}</span>
+        ) : (
+          <span>· Terrain à confirmer</span>
+        )}
       </p>
     </article>
   );

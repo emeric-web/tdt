@@ -1,20 +1,19 @@
 import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { authOptions } from "@/server/auth/auth-options";
-import { mockBracket, mockBracketT2 } from "@/mocks/bracket";
 import { Bracket } from "@/components/bracket/Bracket";
+import { NotFoundError } from "@/server/errors/app-error";
+import { PrismaTournamentRepository } from "@/server/tournaments/tournament.repository";
+import { TournamentService } from "@/server/tournaments/tournament.service";
 
 type PageProps = {
   params: Promise<{ id: string }>;
 };
 
-// Temporary lookup used while the mock data replaces the real API. Remove once
-// GET /api/tournaments/{id}/bracket is wired in.
-const MOCK_BRACKETS_BY_ID = {
-  [mockBracket.tournament.id]: mockBracket,
-  [mockBracketT2.tournament.id]: mockBracketT2,
-};
+const tournamentService = new TournamentService(
+  new PrismaTournamentRepository(),
+);
 
 export default async function TournamentBracketPage({ params }: PageProps) {
   const session = await getServerSession(authOptions);
@@ -25,13 +24,25 @@ export default async function TournamentBracketPage({ params }: PageProps) {
 
   const { id } = await params;
 
-  // TODO: remplacer par un appel à GET /api/tournaments/{id}/bracket une fois la route disponible.
-  const bracket = MOCK_BRACKETS_BY_ID[id] ?? mockBracket;
+  let bracket;
+  try {
+    bracket = await tournamentService.getBracket(id);
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      notFound();
+    }
+
+    throw error;
+  }
 
   return (
     <main>
       <h1>{bracket.tournament.name}</h1>
-      <Bracket rounds={bracket.rounds} />
+      {bracket.rounds.length > 0 ? (
+        <Bracket rounds={bracket.rounds} />
+      ) : (
+        <p>Le tableau n’a pas encore été généré.</p>
+      )}
     </main>
   );
 }
