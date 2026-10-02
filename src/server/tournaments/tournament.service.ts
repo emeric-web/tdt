@@ -1,5 +1,6 @@
 import type {
   TournamentMatch,
+  TournamentBracket,
   TournamentRepository,
   TournamentPage,
   TournamentParticipant,
@@ -33,6 +34,11 @@ export class TournamentService {
   /** Returns the participants registered for a tournament. */
   listParticipants(tournamentId: string): Promise<TournamentParticipants> {
     return this.repository.listParticipants(tournamentId);
+  }
+
+  /** Returns the persisted bracket for a tournament. */
+  getBracket(tournamentId: string): Promise<TournamentBracket> {
+    return this.repository.getBracket(tournamentId);
   }
 
   /** Validates the payload and registers a new participant. */

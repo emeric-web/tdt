@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,39 @@ const participantPage = (
 ) => Response.json({ status, canEdit, hasDraw, items });
 const memberPage = (items: unknown[]) =>
   Response.json({ items, page: 1, pageSize: 100, total: items.length });
+const bracket = () =>
+  Response.json({
+    tournament: {
+      id: "tournament-1",
+      name: "Club Open",
+      startDate: null,
+      finalSetSuperTiebreak: false,
+      status: "DRAFT",
+    },
+    rounds: [
+      {
+        round: 1,
+        matches: [
+          {
+            id: "match-1",
+            round: 1,
+            position: 0,
+            player1: { id: "user-1", name: "Ada Lovelace" },
+            player2: { id: "user-2", name: "Alan Turing" },
+            status: "PENDING",
+            scoreStatus: "NONE",
+            winnerId: null,
+            declaredById: null,
+            score: null,
+            proposedScore: null,
+            isBye: false,
+            scheduledAt: null,
+            court: null,
+          },
+        ],
+      },
+    ],
+  });
 
 describe("ManageParticipants", () => {
   afterEach(cleanup);
@@ -237,7 +270,8 @@ describe("ManageParticipants", () => {
         ]),
       )
       .mockResolvedValueOnce(participantPage([], "DRAFT", true, true))
-      .mockResolvedValueOnce(memberPage([]));
+      .mockResolvedValueOnce(memberPage([]))
+      .mockResolvedValueOnce(bracket());
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -257,6 +291,101 @@ describe("ManageParticipants", () => {
       3,
       "/api/tournaments/tournament-1/draw",
       expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("schedules a pending match from the bracket preview", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        participantPage([
+          {
+            id: "participant-1",
+            tournamentId: "tournament-1",
+            userId: "user-1",
+            name: "Ada Lovelace",
+            seed: null,
+          },
+          {
+            id: "participant-2",
+            tournamentId: "tournament-1",
+            userId: "user-2",
+            name: "Alan Turing",
+            seed: null,
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(memberPage([]))
+      .mockResolvedValueOnce(
+        Response.json([
+          {
+            id: "match-1",
+            round: 1,
+            position: 0,
+            player1Id: "user-1",
+            player2Id: "user-2",
+            winnerId: null,
+            isBye: false,
+            nextMatchId: null,
+            nextSlot: null,
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        participantPage(
+          [
+            {
+              id: "participant-1",
+              tournamentId: "tournament-1",
+              userId: "user-1",
+              name: "Ada Lovelace",
+              seed: null,
+            },
+            {
+              id: "participant-2",
+              tournamentId: "tournament-1",
+              userId: "user-2",
+              name: "Alan Turing",
+              seed: null,
+            },
+          ],
+          "DRAFT",
+          true,
+          true,
+        ),
+      )
+      .mockResolvedValueOnce(memberPage([]))
+      .mockResolvedValueOnce(bracket())
+      .mockResolvedValueOnce(Response.json({ id: "match-1" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<ManageParticipants tournamentId="tournament-1" />);
+    await user.click(
+      await screen.findByRole("button", { name: "Générer le tableau" }),
+    );
+
+    const matchSelect = await screen.findByLabelText("Match");
+    await user.selectOptions(matchSelect, "match-1");
+    fireEvent.change(screen.getByLabelText("Date et heure"), {
+      target: { value: "2026-10-02T14:30" },
+    });
+    await user.type(screen.getByLabelText("Terrain"), "Court 1");
+    await user.click(
+      screen.getByRole("button", { name: "Enregistrer la planification" }),
+    );
+
+    expect(await screen.findByText("Le match a été planifié.")).toBeVisible();
+    expect(screen.getByText(/Court 1/)).toBeVisible();
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/matches/match-1/schedule",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          scheduledAt: new Date("2026-10-02T14:30").toISOString(),
+          court: "Court 1",
+        }),
+      }),
     );
   });
 
@@ -327,7 +456,8 @@ describe("ManageParticipants", () => {
               email: "alan@example.test",
             },
           ]),
-        ),
+        )
+        .mockResolvedValueOnce(bracket()),
     );
 
     render(<ManageParticipants tournamentId="tournament-1" />);
@@ -347,6 +477,8 @@ describe("ManageParticipants", () => {
     expect(
       screen.getByRole("button", { name: "Activer le tournoi" }),
     ).toBeVisible();
+    expect(screen.getByText("Aperçu du tableau")).toBeVisible();
+    expect(screen.getByLabelText("Match")).toBeVisible();
   });
 
   it("removes a participant and invalidates the current draw", async () => {
@@ -376,6 +508,7 @@ describe("ManageParticipants", () => {
         ),
       )
       .mockResolvedValueOnce(memberPage([]))
+      .mockResolvedValueOnce(bracket())
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(
         participantPage(
@@ -409,7 +542,7 @@ describe("ManageParticipants", () => {
       ),
     ).toBeVisible();
     expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
+      4,
       "/api/tournaments/tournament-1/participants/participant-1",
       { method: "DELETE" },
     );
@@ -445,6 +578,7 @@ describe("ManageParticipants", () => {
         ),
       )
       .mockResolvedValueOnce(memberPage([]))
+      .mockResolvedValueOnce(bracket())
       .mockResolvedValueOnce(
         Response.json({
           id: "tournament-1",
@@ -477,7 +611,8 @@ describe("ManageParticipants", () => {
           true,
         ),
       )
-      .mockResolvedValueOnce(memberPage([]));
+      .mockResolvedValueOnce(memberPage([]))
+      .mockResolvedValueOnce(bracket());
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -488,7 +623,7 @@ describe("ManageParticipants", () => {
 
     expect(await screen.findByText("Le tournoi a été activé.")).toBeVisible();
     expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
+      4,
       "/api/tournaments/tournament-1/activate",
       { method: "POST" },
     );

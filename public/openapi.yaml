@@ -395,7 +395,7 @@ paths:
       summary: Lire le tableau du tournoi
       description: Accessible à tout utilisateur connecté.
       operationId: getTournamentBracket
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: "#/components/parameters/ResourceId"
       responses:
@@ -418,7 +418,7 @@ paths:
       summary: Planifier un match
       description: Réservé à l'administrateur.
       operationId: scheduleMatch
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: "#/components/parameters/ResourceId"
       requestBody:
@@ -1060,6 +1060,14 @@ components:
           type: integer
         position:
           type: integer
+        player1:
+          allOf:
+            - $ref: "#/components/schemas/BracketPlayer"
+          nullable: true
+        player2:
+          allOf:
+            - $ref: "#/components/schemas/BracketPlayer"
+          nullable: true
         winnerId:
           type: string
           nullable: true
@@ -1102,6 +1110,14 @@ components:
         court:
           type: string
           nullable: true
+    BracketPlayer:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
     Bracket:
       type: object
       required: [tournament, rounds]

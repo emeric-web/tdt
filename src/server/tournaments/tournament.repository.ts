@@ -1,6 +1,7 @@
 import type { Tournament } from "@/generated/prisma/client";
 import type { TournamentStatus } from "@/generated/prisma/enums";
 import { Prisma } from "@/generated/prisma/client";
+import type { BracketRound, MatchDto, SetScore } from "@/types/bracket";
 import {
   computeRoundCount,
   generateFirstRoundMatches,
@@ -58,6 +59,17 @@ export type TournamentMatch = {
   nextSlot: number | null;
 };
 
+export type TournamentBracket = {
+  tournament: {
+    id: string;
+    name: string;
+    startDate: string | null;
+    finalSetSuperTiebreak: boolean;
+    status: TournamentStatus;
+  };
+  rounds: BracketRound[];
+};
+
 export interface TournamentRepository {
   findPage(input: {
     status?: TournamentStatus;
@@ -66,6 +78,7 @@ export interface TournamentRepository {
   }): Promise<TournamentPage>;
   create(data: CreateTournamentData): Promise<TournamentSummary>;
   listParticipants(tournamentId: string): Promise<TournamentParticipants>;
+  getBracket(tournamentId: string): Promise<TournamentBracket>;
   addParticipant(
     tournamentId: string,
     data: { userId: string; seed?: number },
@@ -89,6 +102,33 @@ async function clearTournamentDraw(
     data: { nextMatchId: null, nextSlot: null },
   });
   await transaction.match.deleteMany({ where: { tournamentId } });
+}
+
+function parseScore(value: Prisma.JsonValue | null): SetScore[] | null {
+  if (value === null) {
+    return null;
+  }
+
+  if (
+    !Array.isArray(value) ||
+    value.length < 2 ||
+    value.length > 3 ||
+    !value.every(
+      (set) =>
+        typeof set === "object" &&
+        set !== null &&
+        !Array.isArray(set) &&
+        "p1" in set &&
+        typeof set.p1 === "number" &&
+        "p2" in set &&
+        typeof set.p2 === "number" &&
+        (!("tb" in set) || typeof set.tb === "number"),
+    )
+  ) {
+    throw new Error("Le score enregistré du match a un format invalide.");
+  }
+
+  return value as SetScore[];
 }
 
 export class PrismaTournamentRepository implements TournamentRepository {
@@ -175,6 +215,78 @@ export class PrismaTournamentRepository implements TournamentRepository {
       items: tournament.participants.map(({ user, ...participant }) => ({
         ...participant,
         name: user.name,
+      })),
+    };
+  }
+
+  /** Returns the stored bracket grouped by round, with public player data. */
+  async getBracket(tournamentId: string): Promise<TournamentBracket> {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: {
+        id: true,
+        name: true,
+        startDate: true,
+        finalSetSuperTiebreak: true,
+        status: true,
+        matches: {
+          orderBy: [{ round: "asc" }, { position: "asc" }],
+          select: {
+            id: true,
+            round: true,
+            position: true,
+            player1: { select: { id: true, name: true } },
+            player2: { select: { id: true, name: true } },
+            status: true,
+            scoreStatus: true,
+            winnerId: true,
+            declaredById: true,
+            score: true,
+            proposedScore: true,
+            isBye: true,
+            scheduledAt: true,
+            court: true,
+          },
+        },
+      },
+    });
+
+    if (!tournament) {
+      throw new NotFoundError("Tournoi introuvable.");
+    }
+
+    const matches: MatchDto[] = tournament.matches.map((match) => ({
+      id: match.id,
+      round: match.round,
+      position: match.position,
+      player1: match.player1,
+      player2: match.player2,
+      status: match.status,
+      scoreStatus: match.scoreStatus,
+      winnerId: match.winnerId,
+      declaredById: match.declaredById,
+      score: parseScore(match.score),
+      proposedScore: parseScore(match.proposedScore),
+      isBye: match.isBye,
+      scheduledAt: match.scheduledAt?.toISOString() ?? null,
+      court: match.court,
+    }));
+    const matchesByRound = new Map<number, MatchDto[]>();
+
+    for (const match of matches) {
+      const roundMatches = matchesByRound.get(match.round) ?? [];
+      roundMatches.push(match);
+      matchesByRound.set(match.round, roundMatches);
+    }
+
+    return {
+      tournament: {
+        ...tournament,
+        startDate: tournament.startDate?.toISOString() ?? null,
+      },
+      rounds: [...matchesByRound.entries()].map(([round, roundMatches]) => ({
+        round,
+        matches: roundMatches,
       })),
     };
   }

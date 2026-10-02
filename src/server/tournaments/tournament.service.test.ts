@@ -25,6 +25,7 @@ describe("TournamentService", () => {
       addParticipant: vi.fn(),
       updateParticipantSeed: vi.fn(),
       draw: vi.fn(),
+      getBracket: vi.fn(),
       removeParticipant: vi.fn(),
       activate: vi.fn(),
     };
@@ -52,6 +53,7 @@ describe("TournamentService", () => {
       addParticipant: vi.fn(),
       updateParticipantSeed: vi.fn(),
       draw: vi.fn(),
+      getBracket: vi.fn(),
       removeParticipant: vi.fn(),
       activate: vi.fn(),
     };
@@ -77,6 +79,7 @@ describe("TournamentService", () => {
       addParticipant: vi.fn(),
       updateParticipantSeed: vi.fn(),
       draw: vi.fn(),
+      getBracket: vi.fn(),
       removeParticipant: vi.fn(),
       activate: vi.fn(),
     };
@@ -102,6 +105,7 @@ describe("TournamentService", () => {
       addParticipant: vi.fn().mockResolvedValue(participant),
       updateParticipantSeed: vi.fn(),
       draw: vi.fn(),
+      getBracket: vi.fn(),
       removeParticipant: vi.fn(),
       activate: vi.fn(),
     };
@@ -130,6 +134,7 @@ describe("TournamentService", () => {
       addParticipant: vi.fn(),
       updateParticipantSeed: vi.fn().mockResolvedValue(participant),
       draw: vi.fn(),
+      getBracket: vi.fn(),
       removeParticipant: vi.fn(),
       activate: vi.fn(),
     };
@@ -168,6 +173,7 @@ describe("TournamentService", () => {
       addParticipant: vi.fn(),
       updateParticipantSeed: vi.fn(),
       draw: vi.fn().mockResolvedValue(matches),
+      getBracket: vi.fn(),
       removeParticipant: vi.fn(),
       activate: vi.fn(),
     };
@@ -187,6 +193,7 @@ describe("TournamentService", () => {
       addParticipant: vi.fn(),
       updateParticipantSeed: vi.fn(),
       draw: vi.fn(),
+      getBracket: vi.fn(),
       removeParticipant: vi.fn().mockResolvedValue(undefined),
       activate: vi.fn(),
     };
@@ -216,6 +223,7 @@ describe("TournamentService", () => {
       addParticipant: vi.fn(),
       updateParticipantSeed: vi.fn(),
       draw: vi.fn(),
+      getBracket: vi.fn(),
       removeParticipant: vi.fn(),
       activate: vi.fn().mockResolvedValue(tournament),
     };

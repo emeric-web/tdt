@@ -41,6 +41,8 @@ export type BracketData = {
   tournament: {
     id: string;
     name: string;
+    startDate: string | null;
+    finalSetSuperTiebreak: boolean;
     status: "DRAFT" | "IN_PROGRESS" | "FINISHED";
   };
   rounds: BracketRound[];

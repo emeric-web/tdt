@@ -10,6 +10,8 @@ export const mockBracket: BracketData = {
   tournament: {
     id: "t1",
     name: "Open du club",
+    startDate: null,
+    finalSetSuperTiebreak: false,
     status: "IN_PROGRESS",
   },
   rounds: [
@@ -168,6 +170,8 @@ export const mockBracketT2: BracketData = {
   tournament: {
     id: "t2",
     name: "Tournoi open 41 joueurs",
+    startDate: null,
+    finalSetSuperTiebreak: false,
     status: "IN_PROGRESS",
   },
   rounds: [

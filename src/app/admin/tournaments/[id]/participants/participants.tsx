@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import {
   isErrorResponse,
+  isBracketData,
   isMemberPage,
   isParticipantsResult,
   isTournamentMatchResult,
@@ -32,6 +33,9 @@ export function ManageParticipants({ tournamentId }: { tournamentId: string }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [previewMatches, setPreviewMatches] = useState<MatchDto[] | null>(null);
+  const [scheduledMatchId, setScheduledMatchId] = useState("");
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [court, setCourt] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reloadCount, setReloadCount] = useState(0);
@@ -69,11 +73,36 @@ export function ManageParticipants({ tournamentId }: { tournamentId: string }) {
           );
         }
 
+        let loadedBracketMatches: MatchDto[] | null = null;
+        if (participantsResult.hasDraw) {
+          const bracketResponse = await fetch(
+            `/api/tournaments/${tournamentId}/bracket`,
+          );
+
+          if (!bracketResponse.ok) {
+            throw new Error(
+              `Unable to load tournament bracket (${bracketResponse.status}).`,
+            );
+          }
+
+          const bracketResult: unknown = await bracketResponse.json();
+          if (!isBracketData(bracketResult)) {
+            throw new Error(
+              "Tournament bracket response has an invalid shape.",
+            );
+          }
+
+          loadedBracketMatches = bracketResult.rounds.flatMap(
+            (round) => round.matches,
+          );
+        }
+
         if (isCurrent) {
           setParticipants(participantsResult.items);
           setStatus(participantsResult.status);
           setCanEdit(participantsResult.canEdit);
           setHasDraw(participantsResult.hasDraw);
+          setPreviewMatches(loadedBracketMatches);
           setSeeds(
             Object.fromEntries(
               participantsResult.items.map((participant) => [
@@ -335,6 +364,60 @@ export function ManageParticipants({ tournamentId }: { tournamentId: string }) {
     }
   }
 
+  async function handleScheduleMatch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      const match = previewMatches?.find(
+        (candidate) => candidate.id === scheduledMatchId,
+      );
+
+      if (!match || !scheduledAt) {
+        throw new Error("Sélectionnez un match et une date de planification.");
+      }
+
+      const scheduledAtIso = new Date(scheduledAt).toISOString();
+      const response = await fetch(`/api/matches/${match.id}/schedule`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduledAt: scheduledAtIso, court }),
+      });
+      const result: unknown = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          isErrorResponse(result)
+            ? result.error.message
+            : "Impossible de planifier le match.",
+        );
+      }
+
+      setPreviewMatches(
+        (current) =>
+          current?.map((item) =>
+            item.id === match.id
+              ? { ...item, scheduledAt: scheduledAtIso, court: court.trim() }
+              : item,
+          ) ?? null,
+      );
+      setSuccessMessage("Le match a été planifié.");
+      setScheduledAt("");
+      setCourt("");
+    } catch (error) {
+      console.error("Unable to schedule tournament match.", error);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Impossible de contacter le serveur. Réessayez.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   async function handleActivate() {
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -539,6 +622,60 @@ export function ManageParticipants({ tournamentId }: { tournamentId: string }) {
         <section aria-labelledby="bracket-preview-heading">
           <h2 id="bracket-preview-heading">Aperçu du tableau</h2>
           <Bracket rounds={groupByRound(previewMatches)} />
+          {status !== "FINISHED" && (
+            <form onSubmit={handleScheduleMatch}>
+              <h3>Planifier un match</h3>
+              <label>
+                Match
+                <select
+                  value={scheduledMatchId}
+                  onChange={(event) => setScheduledMatchId(event.target.value)}
+                  disabled={isSubmitting}
+                  required
+                >
+                  <option value="" disabled>
+                    Sélectionner un match
+                  </option>
+                  {previewMatches
+                    .filter(
+                      (match) => !match.isBye && match.status === "PENDING",
+                    )
+                    .map((match) => (
+                      <option key={match.id} value={match.id}>
+                        Tour {match.round} —{" "}
+                        {match.player1?.name ?? "À déterminer"} /{" "}
+                        {match.player2?.name ?? "À déterminer"}
+                        {match.scheduledAt ? " (déjà planifié)" : ""}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label>
+                Date et heure
+                <input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(event) => setScheduledAt(event.target.value)}
+                  disabled={isSubmitting}
+                  required
+                />
+              </label>
+              <label>
+                Terrain
+                <input
+                  type="text"
+                  maxLength={100}
+                  value={court}
+                  onChange={(event) => setCourt(event.target.value)}
+                  disabled={isSubmitting}
+                  required
+                />
+              </label>
+              <button type="submit" disabled={isSubmitting || isLoading}>
+                Enregistrer la planification
+              </button>
+            </form>
+          )}
         </section>
       )}
       <button

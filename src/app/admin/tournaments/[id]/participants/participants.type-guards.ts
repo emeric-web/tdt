@@ -3,6 +3,7 @@ import type {
   ParticipantsResult,
   TournamentMatchResult,
 } from "./participants.type";
+import type { BracketData, MatchDto } from "@/types/bracket";
 
 export function isErrorResponse(result: unknown): result is {
   error: { message: string };
@@ -77,6 +78,115 @@ export function isTournamentMatchResult(
         (typeof match.nextMatchId === "string" || match.nextMatchId === null) &&
         "nextSlot" in match &&
         (typeof match.nextSlot === "number" || match.nextSlot === null),
+    )
+  );
+}
+
+function isBracketMatch(result: unknown): result is MatchDto {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    "id" in result &&
+    typeof result.id === "string" &&
+    "round" in result &&
+    typeof result.round === "number" &&
+    "position" in result &&
+    typeof result.position === "number" &&
+    "player1" in result &&
+    (result.player1 === null ||
+      (typeof result.player1 === "object" &&
+        result.player1 !== null &&
+        "id" in result.player1 &&
+        typeof result.player1.id === "string" &&
+        "name" in result.player1 &&
+        typeof result.player1.name === "string")) &&
+    "player2" in result &&
+    (result.player2 === null ||
+      (typeof result.player2 === "object" &&
+        result.player2 !== null &&
+        "id" in result.player2 &&
+        typeof result.player2.id === "string" &&
+        "name" in result.player2 &&
+        typeof result.player2.name === "string")) &&
+    "status" in result &&
+    (result.status === "PENDING" ||
+      result.status === "DECLARED" ||
+      result.status === "CORRECTION_PROPOSED" ||
+      result.status === "DISPUTED" ||
+      result.status === "VALIDATED") &&
+    "scoreStatus" in result &&
+    (result.scoreStatus === "NONE" ||
+      result.scoreStatus === "DECLARED" ||
+      result.scoreStatus === "CORRECTION_PROPOSED" ||
+      result.scoreStatus === "DISPUTED" ||
+      result.scoreStatus === "VALIDATED") &&
+    "winnerId" in result &&
+    (typeof result.winnerId === "string" || result.winnerId === null) &&
+    "declaredById" in result &&
+    (typeof result.declaredById === "string" || result.declaredById === null) &&
+    "score" in result &&
+    isScore(result.score) &&
+    "proposedScore" in result &&
+    isScore(result.proposedScore) &&
+    "isBye" in result &&
+    typeof result.isBye === "boolean" &&
+    "scheduledAt" in result &&
+    (typeof result.scheduledAt === "string" || result.scheduledAt === null) &&
+    "court" in result &&
+    (typeof result.court === "string" || result.court === null)
+  );
+}
+
+function isScore(value: unknown): value is MatchDto["score"] {
+  return (
+    value === null ||
+    (Array.isArray(value) &&
+      value.length >= 2 &&
+      value.length <= 3 &&
+      value.every(
+        (set) =>
+          typeof set === "object" &&
+          set !== null &&
+          "p1" in set &&
+          typeof set.p1 === "number" &&
+          "p2" in set &&
+          typeof set.p2 === "number" &&
+          (!("tb" in set) || typeof set.tb === "number"),
+      ))
+  );
+}
+
+export function isBracketData(result: unknown): result is BracketData {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    "tournament" in result &&
+    typeof result.tournament === "object" &&
+    result.tournament !== null &&
+    "id" in result.tournament &&
+    typeof result.tournament.id === "string" &&
+    "name" in result.tournament &&
+    typeof result.tournament.name === "string" &&
+    "startDate" in result.tournament &&
+    (typeof result.tournament.startDate === "string" ||
+      result.tournament.startDate === null) &&
+    "finalSetSuperTiebreak" in result.tournament &&
+    typeof result.tournament.finalSetSuperTiebreak === "boolean" &&
+    "status" in result.tournament &&
+    (result.tournament.status === "DRAFT" ||
+      result.tournament.status === "IN_PROGRESS" ||
+      result.tournament.status === "FINISHED") &&
+    "rounds" in result &&
+    Array.isArray(result.rounds) &&
+    result.rounds.every(
+      (round) =>
+        typeof round === "object" &&
+        round !== null &&
+        "round" in round &&
+        typeof round.round === "number" &&
+        "matches" in round &&
+        Array.isArray(round.matches) &&
+        round.matches.every(isBracketMatch),
     )
   );
 }
