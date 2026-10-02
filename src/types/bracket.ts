@@ -25,6 +25,8 @@ export type MatchDto = {
   scoreStatus: ScoreStatus;
   winnerId: string | null;
   declaredById: string | null;
+  declaredWinnerId?: string | null;
+  proposedWinnerId?: string | null;
   score: SetScore[] | null;
   proposedScore: SetScore[] | null;
   isBye: boolean;

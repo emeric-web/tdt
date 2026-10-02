@@ -149,4 +149,54 @@ describe("ScoreForm", () => {
       ),
     ).toBeVisible();
   });
+
+  it("submits a score contest without sending or changing a winner", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        id: "match-1",
+        status: "CORRECTION_PROPOSED",
+        scoreStatus: "CORRECTION_PROPOSED",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(
+      <ScoreForm
+        matchId="match-1"
+        player1={{ id: "player-1", name: "Ada Lovelace" }}
+        player2={{ id: "player-2", name: "Alan Turing" }}
+        finalSetSuperTiebreak={false}
+        mode="contest-score"
+        declaredWinnerId="player-2"
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Ada Lovelace, set 1"), "4");
+    await user.type(screen.getByLabelText("Alan Turing, set 1"), "6");
+    await user.type(screen.getByLabelText("Ada Lovelace, set 2"), "3");
+    await user.type(screen.getByLabelText("Alan Turing, set 2"), "6");
+    await user.click(
+      screen.getByRole("button", { name: "Contester le score" }),
+    );
+
+    expect(screen.queryByLabelText("Vainqueur")).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/matches/match-1/contest-score",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          score: [
+            { p1: 4, p2: 6 },
+            { p1: 3, p2: 6 },
+          ],
+        }),
+      }),
+    );
+    expect(
+      await screen.findByText(
+        "Contestation du score enregistrée. Le vainqueur reste non validé.",
+      ),
+    ).toBeVisible();
+  });
 });

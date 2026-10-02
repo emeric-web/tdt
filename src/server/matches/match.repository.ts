@@ -7,6 +7,7 @@ import {
   NotFoundError,
 } from "@/server/errors/app-error";
 import type {
+  ContestScoreInput,
   DeclareResultInput,
   ProposeCorrectionInput,
   ScheduleMatchInput,
@@ -16,6 +17,7 @@ import {
   guardMatchDeclaration,
   guardMatchConfirmation,
   guardMatchCorrectionProposal,
+  guardMatchScoreContest,
   guardMatchScheduling,
 } from "@/server/matches/match.rules";
 import { scoreSchema, validateScore } from "@/server/score/score.validator";
@@ -127,6 +129,11 @@ export interface MatchRepository {
     id: string,
     actorId: string,
     data: ProposeCorrectionInput,
+  ): Promise<DeclaredMatch>;
+  contestScore(
+    id: string,
+    actorId: string,
+    data: ContestScoreInput,
   ): Promise<DeclaredMatch>;
 }
 
@@ -681,6 +688,122 @@ export class PrismaMatchRepository implements MatchRepository {
         },
         data: {
           proposedWinnerId: data.winnerId,
+          proposedScore: score,
+          status: "CORRECTION_PROPOSED",
+          scoreStatus: "CORRECTION_PROPOSED",
+          version: { increment: 1 },
+        },
+      });
+
+      if (updated.count !== 1) {
+        throw new ConflictError(
+          "Le résultat a changé. Rechargez la page avant de réessayer.",
+        );
+      }
+
+      return transaction.match.findUniqueOrThrow({
+        where: { id: match.id },
+        select: {
+          id: true,
+          tournamentId: true,
+          round: true,
+          position: true,
+          winnerId: true,
+          declaredById: true,
+          declaredWinnerId: true,
+          declaredScore: true,
+          proposedWinnerId: true,
+          scoreStatus: true,
+          status: true,
+          resultKind: true,
+          score: true,
+          proposedScore: true,
+          isBye: true,
+          scheduledAt: true,
+          court: true,
+        },
+      });
+    });
+  }
+
+  /** Records an alternative score with the same winner and leaves the match unresolved. */
+  async contestScore(
+    id: string,
+    actorId: string,
+    data: ContestScoreInput,
+  ): Promise<DeclaredMatch> {
+    return prisma.$transaction(async (transaction) => {
+      const match = await transaction.match.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          status: true,
+          scoreStatus: true,
+          isBye: true,
+          player1Id: true,
+          player2Id: true,
+          declaredById: true,
+          declaredWinnerId: true,
+          version: true,
+          tournament: {
+            select: { status: true, finalSetSuperTiebreak: true },
+          },
+        },
+      });
+
+      if (!match) {
+        throw new NotFoundError("Match introuvable.");
+      }
+
+      guardMatchScoreContest(
+        match.status,
+        match.scoreStatus,
+        match.isBye,
+        match.tournament.status,
+        match.player1Id,
+        match.player2Id,
+        match.declaredById,
+        actorId,
+      );
+
+      if (
+        match.declaredWinnerId !== match.player1Id &&
+        match.declaredWinnerId !== match.player2Id
+      ) {
+        throw new ConflictError(
+          "Le vainqueur déclaré ne participe pas au match.",
+        );
+      }
+
+      const scoreWinner = validateScore(
+        data.score,
+        match.tournament.finalSetSuperTiebreak,
+      );
+      const scoreWinnerId =
+        scoreWinner === "p1" ? match.player1Id : match.player2Id;
+      if (scoreWinnerId !== match.declaredWinnerId) {
+        throw new BadRequestError(
+          "Le score contesté doit conserver le vainqueur déclaré.",
+        );
+      }
+
+      const score = data.score.map((set) => ({
+        p1: set.p1,
+        p2: set.p2,
+        ...(set.tb === undefined ? {} : { tb: set.tb }),
+      }));
+      const updated = await transaction.match.updateMany({
+        where: {
+          id: match.id,
+          status: "DECLARED",
+          scoreStatus: "DECLARED",
+          version: match.version,
+          declaredById: match.declaredById,
+          declaredWinnerId: match.declaredWinnerId,
+          tournament: { status: "IN_PROGRESS" },
+        },
+        data: {
+          proposedWinnerId: match.declaredWinnerId,
           proposedScore: score,
           status: "CORRECTION_PROPOSED",
           scoreStatus: "CORRECTION_PROPOSED",

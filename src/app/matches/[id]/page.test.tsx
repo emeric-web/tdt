@@ -212,6 +212,48 @@ describe("MatchPage", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("offers a score-only contest while retaining the declared winner", async () => {
+    getDetails.mockResolvedValue({
+      ...details,
+      match: {
+        ...details.match,
+        status: "DECLARED",
+        scoreStatus: "DECLARED",
+        declaredById: "player-1",
+        declaredWinnerId: "player-2",
+        proposedWinnerId: "player-2",
+        proposedScore: [
+          { p1: 4, p2: 6 },
+          { p1: 6, p2: 3 },
+          { p1: 4, p2: 6 },
+        ],
+      },
+    });
+    vi.mocked(getServerSession).mockResolvedValue({
+      expires: "2099-01-01T00:00:00.000Z",
+      user: {
+        id: "player-2",
+        name: "Grace Hopper",
+        email: "grace@example.test",
+        role: "MEMBER",
+      },
+    });
+
+    const page = await MatchPage({
+      params: Promise.resolve({ id: "match-1" }),
+    });
+
+    render(page);
+
+    expect(
+      screen.getByRole("group", { name: "Contester le score" }),
+    ).toBeVisible();
+    expect(screen.getByText(/Vainqueur conservé : Grace Hopper/)).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Contester le score" }),
+    ).toBeVisible();
+  });
+
   it("shows the proposed winner while correction remains unresolved", async () => {
     getDetails.mockResolvedValue({
       ...details,
@@ -240,6 +282,38 @@ describe("MatchPage", () => {
     );
     expect(screen.getByRole("status")).toHaveTextContent(
       "aucun joueur n’avance.",
+    );
+  });
+
+  it("shows a score contest without changing the winner", async () => {
+    getDetails.mockResolvedValue({
+      ...details,
+      match: {
+        ...details.match,
+        status: "CORRECTION_PROPOSED",
+        scoreStatus: "CORRECTION_PROPOSED",
+        declaredById: "player-1",
+        declaredWinnerId: "player-2",
+        proposedWinnerId: "player-2",
+        proposedScore: [
+          { p1: 4, p2: 6 },
+          { p1: 6, p2: 3 },
+          { p1: 4, p2: 6 },
+        ],
+      },
+    });
+
+    const page = await MatchPage({
+      params: Promise.resolve({ id: "match-1" }),
+    });
+
+    render(page);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Score contesté, vainqueur conservé : Grace Hopper.",
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Aucun joueur n’avance avant la résolution.",
     );
   });
 

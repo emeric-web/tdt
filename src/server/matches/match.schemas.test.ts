@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  contestScoreSchema,
   declareResultSchema,
   proposeCorrectionSchema,
   scheduleMatchSchema,
@@ -93,5 +94,31 @@ describe("proposeCorrectionSchema", () => {
         score: [{ p1: 6, p2: 4 }],
       }).success,
     ).toBe(false);
+  });
+
+  describe("contestScoreSchema", () => {
+    it("accepts a score and rejects winner fields or malformed scores", () => {
+      expect(
+        contestScoreSchema.safeParse({
+          score: [
+            { p1: 4, p2: 6 },
+            { p1: 6, p2: 3 },
+            { p1: 4, p2: 6 },
+          ],
+        }).success,
+      ).toBe(true);
+      expect(
+        contestScoreSchema.safeParse({
+          winnerId: "player-1",
+          score: [
+            { p1: 4, p2: 6 },
+            { p1: 6, p2: 3 },
+          ],
+        }).success,
+      ).toBe(false);
+      expect(
+        contestScoreSchema.safeParse({ score: [{ p1: 6, p2: 4 }] }).success,
+      ).toBe(false);
+    });
   });
 });

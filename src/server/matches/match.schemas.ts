@@ -13,6 +13,11 @@ export const declareResultSchema = z.strictObject({
 
 export const proposeCorrectionSchema = declareResultSchema;
 
+export const contestScoreSchema = z.strictObject({
+  score: scoreSchema,
+});
+
 export type ScheduleMatchInput = z.infer<typeof scheduleMatchSchema>;
 export type DeclareResultInput = z.infer<typeof declareResultSchema>;
 export type ProposeCorrectionInput = z.infer<typeof proposeCorrectionSchema>;
+export type ContestScoreInput = z.infer<typeof contestScoreSchema>;

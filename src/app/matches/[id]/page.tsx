@@ -80,12 +80,22 @@ export default async function MatchPage({ params }: PageProps) {
       <h1>Votre match</h1>
       <h2>{details.roundLabel}</h2>
       <MatchCard match={match} />
-      {match.status === "CORRECTION_PROPOSED" && proposedWinnerName && (
-        <p role="status">
-          Vainqueur proposé : {proposedWinnerName}. En attente de traitement,
-          aucun joueur n’avance.
-        </p>
-      )}
+      {match.status === "CORRECTION_PROPOSED" &&
+        proposedWinnerName &&
+        match.proposedWinnerId === match.declaredWinnerId && (
+          <p role="status">
+            Score contesté, vainqueur conservé : {proposedWinnerName}. Aucun
+            joueur n’avance avant la résolution.
+          </p>
+        )}
+      {match.status === "CORRECTION_PROPOSED" &&
+        proposedWinnerName &&
+        match.proposedWinnerId !== match.declaredWinnerId && (
+          <p role="status">
+            Vainqueur proposé : {proposedWinnerName}. En attente de traitement,
+            aucun joueur n’avance.
+          </p>
+        )}
       {details.tournamentStatus === "FINISHED" && (
         <p role="status">Le tournoi est terminé.</p>
       )}
@@ -108,6 +118,19 @@ export default async function MatchPage({ params }: PageProps) {
             player2={match.player2}
             finalSetSuperTiebreak={details.finalSetSuperTiebreak}
             mode="propose-correction"
+            declaredWinnerId={match.declaredWinnerId}
+          />
+        )}
+      {canConfirm &&
+        match.player1 &&
+        match.player2 &&
+        match.declaredWinnerId && (
+          <ScoreForm
+            matchId={match.id}
+            player1={match.player1}
+            player2={match.player2}
+            finalSetSuperTiebreak={details.finalSetSuperTiebreak}
+            mode="contest-score"
             declaredWinnerId={match.declaredWinnerId}
           />
         )}

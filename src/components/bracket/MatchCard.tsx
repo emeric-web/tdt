@@ -88,7 +88,10 @@ export function MatchCard({ match }: MatchCardProps) {
       )}
       {match.status === "CORRECTION_PROPOSED" && (
         <p className={styles.pending}>
-          Proposition d’un autre vainqueur en attente de traitement
+          {match.declaredWinnerId &&
+          match.proposedWinnerId === match.declaredWinnerId
+            ? "Score contesté ; aucun joueur n’avance"
+            : "Proposition d’un autre vainqueur en attente de traitement"}
         </p>
       )}
       <p className={styles.meta}>

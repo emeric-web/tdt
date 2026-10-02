@@ -627,7 +627,7 @@ paths:
       summary: Contester uniquement le score
       description: Le score proposé doit conserver le même vainqueur. Aucun joueur n'avance avant résolution.
       operationId: contestMatchScore
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: "#/components/parameters/ResourceId"
       requestBody:

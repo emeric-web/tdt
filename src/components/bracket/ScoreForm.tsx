@@ -10,7 +10,7 @@ type ScoreFormProps = {
   player1: BracketPlayer;
   player2: BracketPlayer;
   finalSetSuperTiebreak: boolean;
-  mode?: "declare" | "propose-correction";
+  mode?: "declare" | "propose-correction" | "contest-score";
   declaredWinnerId?: string;
 };
 
@@ -52,7 +52,7 @@ export function ScoreForm({
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    if (!winnerId) {
+    if (mode !== "contest-score" && !winnerId) {
       setErrorMessage("Sélectionnez le vainqueur du match.");
       return;
     }
@@ -73,14 +73,17 @@ export function ScoreForm({
 
     try {
       const isCorrection = mode === "propose-correction";
-      const response = await fetch(
-        `/api/matches/${matchId}/${isCorrection ? "propose-correction" : "declare"}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ winnerId, score }),
-        },
-      );
+      const isScoreContest = mode === "contest-score";
+      const endpointMode = isCorrection
+        ? "propose-correction"
+        : isScoreContest
+          ? "contest-score"
+          : "declare";
+      const response = await fetch(`/api/matches/${matchId}/${endpointMode}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(isScoreContest ? { score } : { winnerId, score }),
+      });
       const result: unknown = await response.json();
 
       if (!response.ok) {
@@ -89,21 +92,27 @@ export function ScoreForm({
             ? result.error.message
             : isCorrection
               ? "Impossible de proposer une correction."
-              : "Impossible de déclarer le résultat.",
+              : isScoreContest
+                ? "Impossible de contester le score."
+                : "Impossible de déclarer le résultat.",
         );
       }
 
       setSuccessMessage(
         isCorrection
           ? "Correction proposée. Le résultat reste en attente de traitement."
-          : "Résultat déclaré, en attente de confirmation.",
+          : isScoreContest
+            ? "Contestation du score enregistrée. Le vainqueur reste non validé."
+            : "Résultat déclaré, en attente de confirmation.",
       );
       router.refresh();
     } catch (error) {
       console.error(
         mode === "propose-correction"
           ? "Unable to propose a match result correction."
-          : "Unable to declare match result.",
+          : mode === "contest-score"
+            ? "Unable to contest match score."
+            : "Unable to declare match result.",
         error,
       );
       setErrorMessage(
@@ -127,12 +136,21 @@ export function ScoreForm({
         <legend>
           {mode === "propose-correction"
             ? "Proposer l’autre vainqueur et son score"
-            : "Déclarer le résultat"}
+            : mode === "contest-score"
+              ? "Contester le score"
+              : "Déclarer le résultat"}
         </legend>
         {mode === "propose-correction" && (
           <p>
             Cette proposition ne valide pas le résultat et ne fait pas avancer
             de joueur.
+          </p>
+        )}
+        {mode === "contest-score" && (
+          <p>
+            Vainqueur conservé :{" "}
+            {players.find((player) => player.id === declaredWinnerId)?.name}.
+            Seul le score est contesté ; aucun joueur n’avance.
           </p>
         )}
         {[0, 1, 2].map((setIndex) => (
@@ -172,27 +190,31 @@ export function ScoreForm({
             ))}
           </fieldset>
         ))}
-        <label>
-          Vainqueur
-          <select
-            required
-            value={winnerId}
-            onChange={(event) => setWinnerId(event.target.value)}
-          >
-            <option value="">Sélectionner un vainqueur</option>
-            {winnerOptions.map((player) => (
-              <option key={player.id} value={player.id}>
-                {player.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {mode !== "contest-score" && (
+          <label>
+            Vainqueur
+            <select
+              required
+              value={winnerId}
+              onChange={(event) => setWinnerId(event.target.value)}
+            >
+              <option value="">Sélectionner un vainqueur</option>
+              {winnerOptions.map((player) => (
+                <option key={player.id} value={player.id}>
+                  {player.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <button type="submit">
           {isSubmitting
             ? "Envoi…"
             : mode === "propose-correction"
               ? "Proposer la correction"
-              : "Déclarer le résultat"}
+              : mode === "contest-score"
+                ? "Contester le score"
+                : "Déclarer le résultat"}
         </button>
       </fieldset>
       {errorMessage && <p role="alert">{errorMessage}</p>}

@@ -5,6 +5,7 @@ import type {
   UpcomingMatch,
 } from "@/server/matches/match.repository";
 import {
+  contestScoreSchema,
   declareResultSchema,
   proposeCorrectionSchema,
   scheduleMatchSchema,
@@ -52,5 +53,16 @@ export class MatchService {
     const correction = proposeCorrectionSchema.parse(input);
 
     return this.repository.proposeCorrection(id, actorId, correction);
+  }
+
+  /** Validates and delegates an opponent's score-only contest. */
+  contestScore(
+    id: string,
+    actorId: string,
+    input: unknown,
+  ): Promise<DeclaredMatch> {
+    const contest = contestScoreSchema.parse(input);
+
+    return this.repository.contestScore(id, actorId, contest);
   }
 }
