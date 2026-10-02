@@ -21,6 +21,7 @@ describe("MatchService", () => {
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
+      proposeCorrection: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -42,6 +43,7 @@ describe("MatchService", () => {
       schedule: vi.fn().mockResolvedValue(scheduledMatch),
       declare: vi.fn(),
       confirm: vi.fn(),
+      proposeCorrection: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -64,6 +66,7 @@ describe("MatchService", () => {
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
+      proposeCorrection: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -98,6 +101,7 @@ describe("MatchService", () => {
       schedule: vi.fn(),
       declare: vi.fn().mockResolvedValue(declaredMatch),
       confirm: vi.fn(),
+      proposeCorrection: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -128,6 +132,7 @@ describe("MatchService", () => {
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
+      proposeCorrection: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -158,6 +163,7 @@ describe("MatchService", () => {
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn().mockResolvedValue(confirmedMatch),
+      proposeCorrection: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -165,5 +171,60 @@ describe("MatchService", () => {
       confirmedMatch,
     );
     expect(repository.confirm).toHaveBeenCalledWith("match-1", "player-2");
+  });
+
+  it("validates and delegates a proposed alternative result", async () => {
+    const correction = {
+      winnerId: "player-1",
+      score: [
+        { p1: 6, p2: 4 },
+        { p1: 6, p2: 3 },
+      ],
+    };
+    const proposedMatch = {
+      id: "match-1",
+      status: "CORRECTION_PROPOSED",
+      scoreStatus: "CORRECTION_PROPOSED",
+      proposedWinnerId: "player-1",
+      proposedScore: correction.score,
+    };
+    const repository = {
+      listUpcomingForPlayer: vi.fn(),
+      getDetails: vi.fn(),
+      schedule: vi.fn(),
+      declare: vi.fn(),
+      confirm: vi.fn(),
+      proposeCorrection: vi.fn().mockResolvedValue(proposedMatch),
+    };
+    const service = new MatchService(repository);
+
+    await expect(
+      service.proposeCorrection("match-1", "player-2", correction),
+    ).resolves.toEqual(proposedMatch);
+    expect(repository.proposeCorrection).toHaveBeenCalledWith(
+      "match-1",
+      "player-2",
+      correction,
+    );
+  });
+
+  it("rejects malformed corrections before calling the repository", () => {
+    const repository = {
+      listUpcomingForPlayer: vi.fn(),
+      getDetails: vi.fn(),
+      schedule: vi.fn(),
+      declare: vi.fn(),
+      confirm: vi.fn(),
+      proposeCorrection: vi.fn(),
+    };
+    const service = new MatchService(repository);
+
+    expect(() =>
+      service.proposeCorrection("match-1", "player-2", {
+        winnerId: "",
+        score: [],
+      }),
+    ).toThrow();
+    expect(repository.proposeCorrection).not.toHaveBeenCalled();
   });
 });

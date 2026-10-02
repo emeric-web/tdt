@@ -55,6 +55,19 @@ export default async function MatchPage({ params }: PageProps) {
     match.declaredById !== session.user.id &&
     (match.player1?.id === session.user.id ||
       match.player2?.id === session.user.id);
+  const canProposeCorrection =
+    canConfirm &&
+    match.declaredWinnerId !== null &&
+    (match.declaredWinnerId === match.player1?.id ||
+      match.declaredWinnerId === match.player2?.id);
+  const proposedWinner = [match.player1, match.player2].find(
+    (player) => player?.id === match.proposedWinnerId,
+  );
+  const proposedWinnerName = proposedWinner?.name;
+
+  if (match.status === "CORRECTION_PROPOSED" && !proposedWinnerName) {
+    throw new Error("Le vainqueur proposé du match est introuvable.");
+  }
 
   return (
     <main>
@@ -67,6 +80,12 @@ export default async function MatchPage({ params }: PageProps) {
       <h1>Votre match</h1>
       <h2>{details.roundLabel}</h2>
       <MatchCard match={match} />
+      {match.status === "CORRECTION_PROPOSED" && proposedWinnerName && (
+        <p role="status">
+          Vainqueur proposé : {proposedWinnerName}. En attente de traitement,
+          aucun joueur n’avance.
+        </p>
+      )}
       {details.tournamentStatus === "FINISHED" && (
         <p role="status">Le tournoi est terminé.</p>
       )}
@@ -79,6 +98,19 @@ export default async function MatchPage({ params }: PageProps) {
         />
       )}
       {canConfirm && <ResultConfirmation matchId={match.id} />}
+      {canProposeCorrection &&
+        match.player1 &&
+        match.player2 &&
+        match.declaredWinnerId && (
+          <ScoreForm
+            matchId={match.id}
+            player1={match.player1}
+            player2={match.player2}
+            finalSetSuperTiebreak={details.finalSetSuperTiebreak}
+            mode="propose-correction"
+            declaredWinnerId={match.declaredWinnerId}
+          />
+        )}
     </main>
   );
 }

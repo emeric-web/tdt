@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   declareResultSchema,
+  proposeCorrectionSchema,
   scheduleMatchSchema,
 } from "@/server/matches/match.schemas";
 
@@ -69,6 +70,27 @@ describe("declareResultSchema", () => {
           { p1: 6, p2: 3 },
         ],
         extra: true,
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("proposeCorrectionSchema", () => {
+  it("requires a winner and a complete score shape", () => {
+    expect(
+      proposeCorrectionSchema.safeParse({
+        winnerId: "player-2",
+        score: [
+          { p1: 4, p2: 6 },
+          { p1: 6, p2: 3 },
+          { p1: 4, p2: 6 },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(
+      proposeCorrectionSchema.safeParse({
+        winnerId: "player-2",
+        score: [{ p1: 6, p2: 4 }],
       }).success,
     ).toBe(false);
   });

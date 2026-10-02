@@ -47,6 +47,8 @@ describe("PrismaMatchRepository.getDetails", () => {
       scoreStatus: "NONE",
       winnerId: null,
       declaredById: null,
+      declaredWinnerId: null,
+      proposedWinnerId: null,
       score: null,
       proposedScore: null,
       isBye: false,
@@ -78,6 +80,8 @@ describe("PrismaMatchRepository.getDetails", () => {
         scoreStatus: "NONE",
         winnerId: null,
         declaredById: null,
+        declaredWinnerId: null,
+        proposedWinnerId: null,
         score: null,
         proposedScore: null,
         isBye: false,
@@ -242,7 +246,6 @@ describe("PrismaMatchRepository.declare", () => {
       },
     });
   });
-
   describe("PrismaMatchRepository.confirm", () => {
     const declaredScore = [
       { p1: 4, p2: 6 },
@@ -449,54 +452,162 @@ describe("PrismaMatchRepository.declare", () => {
     });
   });
 
-  it("rejects a concurrent declaration if the match version changed", async () => {
-    transaction.match.findUnique.mockResolvedValue({
-      status: "PENDING",
-      isBye: false,
-      player1Id: "player-1",
-      player2Id: "player-2",
-      version: 3,
-      tournament: {
-        status: "IN_PROGRESS",
-        finalSetSuperTiebreak: false,
-      },
+  describe("PrismaMatchRepository.declare edge cases", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      $transaction.mockImplementation((callback) => callback(transaction));
     });
-    transaction.match.updateMany.mockResolvedValue({ count: 0 });
 
-    await expect(
-      new PrismaMatchRepository().declare("match-1", "player-1", {
-        winnerId: "player-1",
-        score: [
-          { p1: 6, p2: 4 },
-          { p1: 6, p2: 3 },
-        ],
-      }),
-    ).rejects.toThrow(ConflictError);
-    expect(transaction.match.findUniqueOrThrow).not.toHaveBeenCalled();
+    it("rejects a concurrent declaration if the match version changed", async () => {
+      transaction.match.findUnique.mockResolvedValue({
+        status: "PENDING",
+        isBye: false,
+        player1Id: "player-1",
+        player2Id: "player-2",
+        version: 3,
+        tournament: {
+          status: "IN_PROGRESS",
+          finalSetSuperTiebreak: false,
+        },
+      });
+      transaction.match.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        new PrismaMatchRepository().declare("match-1", "player-1", {
+          winnerId: "player-1",
+          score: [
+            { p1: 6, p2: 4 },
+            { p1: 6, p2: 3 },
+          ],
+        }),
+      ).rejects.toThrow(ConflictError);
+      expect(transaction.match.findUniqueOrThrow).not.toHaveBeenCalled();
+    });
+
+    it("rejects a winner that contradicts the validated score", async () => {
+      transaction.match.findUnique.mockResolvedValue({
+        status: "PENDING",
+        isBye: false,
+        player1Id: "player-1",
+        player2Id: "player-2",
+        version: 0,
+        tournament: {
+          status: "IN_PROGRESS",
+          finalSetSuperTiebreak: false,
+        },
+      });
+
+      await expect(
+        new PrismaMatchRepository().declare("match-1", "player-1", {
+          winnerId: "player-2",
+          score: [
+            { p1: 6, p2: 4 },
+            { p1: 6, p2: 3 },
+          ],
+        }),
+      ).rejects.toThrow("Le vainqueur indiqué ne correspond pas au score.");
+      expect(transaction.match.updateMany).not.toHaveBeenCalled();
+    });
   });
 
-  it("rejects a winner that contradicts the validated score", async () => {
-    transaction.match.findUnique.mockResolvedValue({
-      status: "PENDING",
-      isBye: false,
-      player1Id: "player-1",
-      player2Id: "player-2",
-      version: 0,
-      tournament: {
-        status: "IN_PROGRESS",
-        finalSetSuperTiebreak: false,
-      },
+  describe("PrismaMatchRepository.proposeCorrection", () => {
+    const alternateScore = [
+      { p1: 6, p2: 4 },
+      { p1: 6, p2: 3 },
+    ];
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      $transaction.mockImplementation((callback) => callback(transaction));
+      transaction.match.findUnique.mockResolvedValue({
+        id: "match-1",
+        status: "DECLARED",
+        scoreStatus: "DECLARED",
+        isBye: false,
+        player1Id: "player-1",
+        player2Id: "player-2",
+        declaredById: "player-2",
+        declaredWinnerId: "player-2",
+        version: 4,
+        tournament: {
+          status: "IN_PROGRESS",
+          finalSetSuperTiebreak: false,
+        },
+      });
+      transaction.match.updateMany.mockResolvedValue({ count: 1 });
+      transaction.match.findUniqueOrThrow.mockResolvedValue({
+        id: "match-1",
+        status: "CORRECTION_PROPOSED",
+        scoreStatus: "CORRECTION_PROPOSED",
+        winnerId: null,
+        declaredWinnerId: "player-2",
+        proposedWinnerId: "player-1",
+        score: null,
+        proposedScore: alternateScore,
+      });
     });
 
-    await expect(
-      new PrismaMatchRepository().declare("match-1", "player-1", {
-        winnerId: "player-2",
-        score: [
-          { p1: 6, p2: 4 },
-          { p1: 6, p2: 3 },
-        ],
-      }),
-    ).rejects.toThrow("Le vainqueur indiqué ne correspond pas au score.");
-    expect(transaction.match.updateMany).not.toHaveBeenCalled();
+    it("stores an opponent's alternate result without validating or advancing", async () => {
+      await expect(
+        new PrismaMatchRepository().proposeCorrection("match-1", "player-1", {
+          winnerId: "player-1",
+          score: alternateScore,
+        }),
+      ).resolves.toMatchObject({
+        id: "match-1",
+        status: "CORRECTION_PROPOSED",
+        scoreStatus: "CORRECTION_PROPOSED",
+        winnerId: null,
+        declaredWinnerId: "player-2",
+        proposedWinnerId: "player-1",
+        score: null,
+        proposedScore: alternateScore,
+      });
+
+      expect(transaction.match.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: "match-1",
+          status: "DECLARED",
+          scoreStatus: "DECLARED",
+          version: 4,
+          declaredById: "player-2",
+          tournament: { status: "IN_PROGRESS" },
+        },
+        data: {
+          proposedWinnerId: "player-1",
+          proposedScore: alternateScore,
+          status: "CORRECTION_PROPOSED",
+          scoreStatus: "CORRECTION_PROPOSED",
+          version: { increment: 1 },
+        },
+      });
+    });
+
+    it("rejects an alternate winner that does not match the submitted score", async () => {
+      await expect(
+        new PrismaMatchRepository().proposeCorrection("match-1", "player-1", {
+          winnerId: "player-1",
+          score: [
+            { p1: 4, p2: 6 },
+            { p1: 3, p2: 6 },
+          ],
+        }),
+      ).rejects.toThrow("Le vainqueur indiqué ne correspond pas au score.");
+
+      expect(transaction.match.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("rejects a concurrent correction proposal", async () => {
+      transaction.match.updateMany.mockResolvedValueOnce({ count: 0 });
+
+      await expect(
+        new PrismaMatchRepository().proposeCorrection("match-1", "player-1", {
+          winnerId: "player-1",
+          score: alternateScore,
+        }),
+      ).rejects.toThrow(ConflictError);
+
+      expect(transaction.match.findUniqueOrThrow).not.toHaveBeenCalled();
+    });
   });
 });

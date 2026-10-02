@@ -6,6 +6,7 @@ import type {
 } from "@/server/matches/match.repository";
 import {
   declareResultSchema,
+  proposeCorrectionSchema,
   scheduleMatchSchema,
 } from "@/server/matches/match.schemas";
 import type { DeclaredMatch } from "@/server/matches/match.repository";
@@ -40,5 +41,16 @@ export class MatchService {
   /** Confirms an opponent's declared result. */
   confirm(id: string, actorId: string): Promise<DeclaredMatch> {
     return this.repository.confirm(id, actorId);
+  }
+
+  /** Validates and stores an opponent's proposed alternative result. */
+  proposeCorrection(
+    id: string,
+    actorId: string,
+    input: unknown,
+  ): Promise<DeclaredMatch> {
+    const correction = proposeCorrectionSchema.parse(input);
+
+    return this.repository.proposeCorrection(id, actorId, correction);
   }
 }

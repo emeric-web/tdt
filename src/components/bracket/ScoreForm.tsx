@@ -10,6 +10,8 @@ type ScoreFormProps = {
   player1: BracketPlayer;
   player2: BracketPlayer;
   finalSetSuperTiebreak: boolean;
+  mode?: "declare" | "propose-correction";
+  declaredWinnerId?: string;
 };
 
 function isErrorResponse(value: unknown): value is {
@@ -31,6 +33,8 @@ export function ScoreForm({
   player1,
   player2,
   finalSetSuperTiebreak,
+  mode = "declare",
+  declaredWinnerId,
 }: ScoreFormProps) {
   const router = useRouter();
   const [sets, setSets] = useState<string[][]>([
@@ -68,25 +72,40 @@ export function ScoreForm({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`/api/matches/${matchId}/declare`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ winnerId, score }),
-      });
+      const isCorrection = mode === "propose-correction";
+      const response = await fetch(
+        `/api/matches/${matchId}/${isCorrection ? "propose-correction" : "declare"}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ winnerId, score }),
+        },
+      );
       const result: unknown = await response.json();
 
       if (!response.ok) {
         throw new Error(
           isErrorResponse(result)
             ? result.error.message
-            : "Impossible de déclarer le résultat.",
+            : isCorrection
+              ? "Impossible de proposer une correction."
+              : "Impossible de déclarer le résultat.",
         );
       }
 
-      setSuccessMessage("Résultat déclaré, en attente de confirmation.");
+      setSuccessMessage(
+        isCorrection
+          ? "Correction proposée. Le résultat reste en attente de traitement."
+          : "Résultat déclaré, en attente de confirmation.",
+      );
       router.refresh();
     } catch (error) {
-      console.error("Unable to declare match result.", error);
+      console.error(
+        mode === "propose-correction"
+          ? "Unable to propose a match result correction."
+          : "Unable to declare match result.",
+        error,
+      );
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -98,11 +117,24 @@ export function ScoreForm({
   }
 
   const players = [player1, player2];
+  const winnerOptions = players.filter(
+    (player) => mode !== "propose-correction" || player.id !== declaredWinnerId,
+  );
 
   return (
     <form onSubmit={handleSubmit}>
       <fieldset disabled={isSubmitting}>
-        <legend>Déclarer le résultat</legend>
+        <legend>
+          {mode === "propose-correction"
+            ? "Proposer l’autre vainqueur et son score"
+            : "Déclarer le résultat"}
+        </legend>
+        {mode === "propose-correction" && (
+          <p>
+            Cette proposition ne valide pas le résultat et ne fait pas avancer
+            de joueur.
+          </p>
+        )}
         {[0, 1, 2].map((setIndex) => (
           <fieldset key={setIndex}>
             <legend>
@@ -148,7 +180,7 @@ export function ScoreForm({
             onChange={(event) => setWinnerId(event.target.value)}
           >
             <option value="">Sélectionner un vainqueur</option>
-            {players.map((player) => (
+            {winnerOptions.map((player) => (
               <option key={player.id} value={player.id}>
                 {player.name}
               </option>
@@ -156,7 +188,11 @@ export function ScoreForm({
           </select>
         </label>
         <button type="submit">
-          {isSubmitting ? "Envoi…" : "Déclarer le résultat"}
+          {isSubmitting
+            ? "Envoi…"
+            : mode === "propose-correction"
+              ? "Proposer la correction"
+              : "Déclarer le résultat"}
         </button>
       </fieldset>
       {errorMessage && <p role="alert">{errorMessage}</p>}

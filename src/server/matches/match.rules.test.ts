@@ -8,6 +8,7 @@ import {
 import {
   guardDeclaredWinner,
   guardMatchConfirmation,
+  guardMatchCorrectionProposal,
   guardMatchDeclaration,
   guardMatchScheduling,
 } from "@/server/matches/match.rules";
@@ -32,6 +33,120 @@ describe("guardMatchScheduling", () => {
 
     it("allows the opponent to confirm a declared result", () => {
       expect(confirm).not.toThrow();
+    });
+
+    describe("guardMatchCorrectionProposal", () => {
+      it("allows the non-declarant to propose the other player as winner", () => {
+        expect(() =>
+          guardMatchCorrectionProposal(
+            "DECLARED",
+            "DECLARED",
+            false,
+            "IN_PROGRESS",
+            "player-1",
+            "player-2",
+            "player-1",
+            "player-1",
+            "player-2",
+            "player-2",
+          ),
+        ).not.toThrow();
+      });
+
+      it("rejects proposals from the original declarant", () => {
+        expect(() =>
+          guardMatchCorrectionProposal(
+            "DECLARED",
+            "DECLARED",
+            false,
+            "IN_PROGRESS",
+            "player-1",
+            "player-2",
+            "player-1",
+            "player-1",
+            "player-2",
+            "player-1",
+          ),
+        ).toThrow(ForbiddenError);
+      });
+
+      it("rejects a proposed winner that is not in the match", () => {
+        expect(() =>
+          guardMatchCorrectionProposal(
+            "DECLARED",
+            "DECLARED",
+            false,
+            "IN_PROGRESS",
+            "player-1",
+            "player-2",
+            "player-1",
+            "player-1",
+            "other-user",
+            "player-2",
+          ),
+        ).toThrow(BadRequestError);
+      });
+
+      it("rejects a proposal that keeps the originally declared winner", () => {
+        expect(() =>
+          guardMatchCorrectionProposal(
+            "DECLARED",
+            "DECLARED",
+            false,
+            "IN_PROGRESS",
+            "player-1",
+            "player-2",
+            "player-1",
+            "player-1",
+            "player-1",
+            "player-2",
+          ),
+        ).toThrow(BadRequestError);
+      });
+
+      it("rejects a correction when the stored initial winner is not a player", () => {
+        expect(() =>
+          guardMatchCorrectionProposal(
+            "DECLARED",
+            "DECLARED",
+            false,
+            "IN_PROGRESS",
+            "player-1",
+            "player-2",
+            "player-1",
+            "other-user",
+            "player-2",
+            "player-2",
+          ),
+        ).toThrow(ConflictError);
+      });
+
+      it.each([
+        ["PENDING", "NONE", false, "IN_PROGRESS"],
+        ["CORRECTION_PROPOSED", "CORRECTION_PROPOSED", false, "IN_PROGRESS"],
+        ["DECLARED", "DISPUTED", false, "IN_PROGRESS"],
+        ["DECLARED", "DECLARED", true, "IN_PROGRESS"],
+        ["DECLARED", "DECLARED", false, "DRAFT"],
+        ["DECLARED", "DECLARED", false, "FINISHED"],
+      ] as const)(
+        "rejects unavailable state (%s, %s, bye=%s, %s)",
+        (status, scoreStatus, isBye, tournamentStatus) => {
+          expect(() =>
+            guardMatchCorrectionProposal(
+              status,
+              scoreStatus,
+              isBye,
+              tournamentStatus,
+              "player-1",
+              "player-2",
+              "player-1",
+              "player-1",
+              "player-2",
+              "player-2",
+            ),
+          ).toThrow(ConflictError);
+        },
+      );
     });
 
     it("rejects confirmation by the player who declared the result", () => {

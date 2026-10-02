@@ -86,6 +86,11 @@ export function MatchCard({ match }: MatchCardProps) {
       {match.status === "DECLARED" && (
         <p className={styles.pending}>Résultat à confirmer par l’adversaire</p>
       )}
+      {match.status === "CORRECTION_PROPOSED" && (
+        <p className={styles.pending}>
+          Proposition d’un autre vainqueur en attente de traitement
+        </p>
+      )}
       <p className={styles.meta}>
         <span className={styles.badge} data-status={match.status}>
           {STATUS_LABEL[match.status]}

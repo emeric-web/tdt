@@ -11,5 +11,8 @@ export const declareResultSchema = z.strictObject({
   score: scoreSchema,
 });
 
+export const proposeCorrectionSchema = declareResultSchema;
+
 export type ScheduleMatchInput = z.infer<typeof scheduleMatchSchema>;
 export type DeclareResultInput = z.infer<typeof declareResultSchema>;
+export type ProposeCorrectionInput = z.infer<typeof proposeCorrectionSchema>;

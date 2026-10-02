@@ -538,7 +538,7 @@ paths:
       summary: Proposer l'autre vainqueur
       description: Réservé à l'autre joueur ; la proposition inclut un score cohérent.
       operationId: proposeWinnerCorrection
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: "#/components/parameters/ResourceId"
       requestBody:
@@ -1098,6 +1098,16 @@ components:
         declaredById:
           type: string
           nullable: true
+        declaredWinnerId:
+          type: string
+          nullable: true
+        declaredScore:
+          type: array
+          nullable: true
+          minItems: 2
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/SetScore"
         proposedWinnerId:
           type: string
           nullable: true
@@ -1136,7 +1146,18 @@ components:
           nullable: true
     UpcomingMatch:
       type: object
-      required: [id, tournamentId, tournamentName, round, roundLabel, playerName, opponentName, scheduledAt, court]
+      required:
+        [
+          id,
+          tournamentId,
+          tournamentName,
+          round,
+          roundLabel,
+          playerName,
+          opponentName,
+          scheduledAt,
+          court,
+        ]
       properties:
         id:
           type: string
