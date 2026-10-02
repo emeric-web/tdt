@@ -3,6 +3,32 @@ import { describe, expect, it, vi } from "vitest";
 import { MatchService } from "@/server/matches/match.service";
 
 describe("MatchService", () => {
+  it("lists upcoming matches for the current player", async () => {
+    const upcomingMatches = [
+      {
+        id: "match-1",
+        tournamentId: "tournament-1",
+        tournamentName: "Club Open",
+        round: 2,
+        opponentName: "Grace Hopper",
+        scheduledAt: "2026-10-03T10:00:00.000Z",
+        court: "Court 1",
+      },
+    ];
+    const repository = {
+      listUpcomingForPlayer: vi.fn().mockResolvedValue(upcomingMatches),
+      getDetails: vi.fn(),
+      schedule: vi.fn(),
+      declare: vi.fn(),
+    };
+    const service = new MatchService(repository);
+
+    await expect(service.listUpcomingForPlayer("player-1")).resolves.toEqual(
+      upcomingMatches,
+    );
+    expect(repository.listUpcomingForPlayer).toHaveBeenCalledWith("player-1");
+  });
+
   it("validates and delegates a match schedule", async () => {
     const scheduledMatch = {
       id: "match-1",
@@ -10,7 +36,10 @@ describe("MatchService", () => {
       court: "Court 1",
     };
     const repository = {
+      listUpcomingForPlayer: vi.fn(),
+      getDetails: vi.fn(),
       schedule: vi.fn().mockResolvedValue(scheduledMatch),
+      declare: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -27,7 +56,12 @@ describe("MatchService", () => {
   });
 
   it("does not call the repository with invalid data", async () => {
-    const repository = { schedule: vi.fn() };
+    const repository = {
+      listUpcomingForPlayer: vi.fn(),
+      getDetails: vi.fn(),
+      schedule: vi.fn(),
+      declare: vi.fn(),
+    };
     const service = new MatchService(repository);
 
     expect(() =>
@@ -37,5 +71,67 @@ describe("MatchService", () => {
       }),
     ).toThrow();
     expect(repository.schedule).not.toHaveBeenCalled();
+  });
+
+  it("validates and delegates a match result declaration", async () => {
+    const declaredMatch = {
+      id: "match-1",
+      status: "DECLARED",
+      scoreStatus: "DECLARED",
+      declaredById: "player-1",
+      declaredWinnerId: "player-2",
+      proposedWinnerId: "player-2",
+      winnerId: null,
+      score: null,
+      proposedScore: [
+        { p1: 4, p2: 6 },
+        { p1: 6, p2: 3 },
+        { p1: 4, p2: 6 },
+      ],
+    };
+    const repository = {
+      listUpcomingForPlayer: vi.fn(),
+      getDetails: vi.fn(),
+      schedule: vi.fn(),
+      declare: vi.fn().mockResolvedValue(declaredMatch),
+    };
+    const service = new MatchService(repository);
+
+    await expect(
+      service.declare("match-1", "player-1", {
+        winnerId: "player-2",
+        score: [
+          { p1: 4, p2: 6 },
+          { p1: 6, p2: 3 },
+          { p1: 4, p2: 6 },
+        ],
+      }),
+    ).resolves.toEqual(declaredMatch);
+    expect(repository.declare).toHaveBeenCalledWith("match-1", "player-1", {
+      winnerId: "player-2",
+      score: [
+        { p1: 4, p2: 6 },
+        { p1: 6, p2: 3 },
+        { p1: 4, p2: 6 },
+      ],
+    });
+  });
+
+  it("rejects an invalid declaration before calling the repository", () => {
+    const repository = {
+      listUpcomingForPlayer: vi.fn(),
+      getDetails: vi.fn(),
+      schedule: vi.fn(),
+      declare: vi.fn(),
+    };
+    const service = new MatchService(repository);
+
+    expect(() =>
+      service.declare("match-1", "player-1", {
+        winnerId: "",
+        score: [],
+      }),
+    ).toThrow();
+    expect(repository.declare).not.toHaveBeenCalled();
   });
 });

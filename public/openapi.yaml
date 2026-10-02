@@ -451,9 +451,9 @@ paths:
     post:
       tags: [Matches]
       summary: Déclarer le vainqueur et le score
-      description: Réservé à un joueur du match ; le score doit désigner le vainqueur.
+      description: Réservé à un joueur du match en cours ; le score doit désigner le vainqueur. Le résultat reste en attente de confirmation.
       operationId: declareMatchResult
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: "#/components/parameters/ResourceId"
       requestBody:
@@ -464,7 +464,7 @@ paths:
               $ref: "#/components/schemas/DeclareResult"
       responses:
         "200":
-          description: Résultat déclaré, en attente de réponse de l'adversaire
+          description: Résultat déclaré ; le vainqueur et le score ne sont pas encore validés
           content:
             application/json:
               schema:
@@ -479,6 +479,29 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /matches/upcoming:
+    get:
+      tags: [Matches]
+      summary: Lister les prochains matchs du membre connecté
+      description: Retourne les rencontres en attente assignées au membre, avec les matchs planifiés à venir et ceux dont l'horaire reste à confirmer.
+      operationId: listUpcomingMatches
+      x-implementation-status: implemented
+      responses:
+        "200":
+          description: Prochains matchs personnels, triés par horaire
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UpcomingMatch"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -997,11 +1020,12 @@ components:
         tb:
           type: integer
           minimum: 0
-          description: Points du perdant du tie-break, facultatifs pour un set 7-6.
+          description: Points du perdant du tie-break, uniquement pour un set 7-6.
     Score:
       type: array
       minItems: 2
       maxItems: 3
+      description: Deux ou trois sets cohérents en deux sets gagnants ; le troisième peut être un super tie-break si le tournoi l'a configuré.
       items:
         $ref: "#/components/schemas/SetScore"
     DeclareResult:
@@ -1103,6 +1127,31 @@ components:
             $ref: "#/components/schemas/SetScore"
         isBye:
           type: boolean
+        scheduledAt:
+          type: string
+          nullable: true
+          format: date-time
+        court:
+          type: string
+          nullable: true
+    UpcomingMatch:
+      type: object
+      required: [id, tournamentId, tournamentName, round, roundLabel, playerName, opponentName, scheduledAt, court]
+      properties:
+        id:
+          type: string
+        tournamentId:
+          type: string
+        tournamentName:
+          type: string
+        round:
+          type: integer
+        roundLabel:
+          type: string
+        playerName:
+          type: string
+        opponentName:
+          type: string
         scheduledAt:
           type: string
           nullable: true

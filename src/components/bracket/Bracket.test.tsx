@@ -1,8 +1,12 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Bracket } from "./Bracket";
 import type { BracketRound, MatchDto } from "@/types/bracket";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 function match(overrides: Partial<MatchDto>): MatchDto {
   return {
@@ -122,6 +126,14 @@ describe("Bracket", () => {
     );
     expect(screen.getByText(/Court 1/)).toBeInTheDocument();
     expect(screen.queryByText("Horaire à confirmer")).not.toBeInTheDocument();
+  });
+
+  it("keeps the result form out of the tournament bracket", () => {
+    render(<Bracket rounds={rounds} />);
+
+    expect(
+      screen.queryByRole("button", { name: "Déclarer le résultat" }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps every round in the bracket instead of switching between rounds", () => {

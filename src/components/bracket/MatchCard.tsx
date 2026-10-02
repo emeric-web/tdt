@@ -65,7 +65,7 @@ export function MatchCard({ match }: MatchCardProps) {
   const scorePending = match.scoreStatus !== "VALIDATED" && shownScore !== null;
 
   return (
-    <article className={styles.card}>
+    <article id={`match-${match.id}`} className={styles.card}>
       <PlayerLine
         player={match.player1}
         side="p1"
@@ -83,6 +83,9 @@ export function MatchCard({ match }: MatchCardProps) {
         isBye={match.isBye}
       />
       {scorePending && <p className={styles.pending}>Score à confirmer</p>}
+      {match.status === "DECLARED" && (
+        <p className={styles.pending}>Résultat à confirmer par l’adversaire</p>
+      )}
       <p className={styles.meta}>
         <span className={styles.badge} data-status={match.status}>
           {STATUS_LABEL[match.status]}

@@ -1,16 +1,39 @@
 import type {
   MatchRepository,
+  MatchDetails,
   ScheduledMatch,
+  UpcomingMatch,
 } from "@/server/matches/match.repository";
-import { scheduleMatchSchema } from "@/server/matches/match.schemas";
+import {
+  declareResultSchema,
+  scheduleMatchSchema,
+} from "@/server/matches/match.schemas";
+import type { DeclaredMatch } from "@/server/matches/match.repository";
 
 export class MatchService {
   constructor(private readonly repository: MatchRepository) {}
+
+  /** Lists the current player's pending upcoming matches. */
+  listUpcomingForPlayer(playerId: string): Promise<UpcomingMatch[]> {
+    return this.repository.listUpcomingForPlayer(playerId);
+  }
+
+  /** Returns one match and its public tournament settings. */
+  getDetails(id: string): Promise<MatchDetails> {
+    return this.repository.getDetails(id);
+  }
 
   /** Validates and saves the schedule of a match. */
   schedule(id: string, input: unknown): Promise<ScheduledMatch> {
     const schedule = scheduleMatchSchema.parse(input);
 
     return this.repository.schedule(id, schedule);
+  }
+
+  /** Validates a result declaration before delegating it to the repository. */
+  declare(id: string, actorId: string, input: unknown): Promise<DeclaredMatch> {
+    const declaration = declareResultSchema.parse(input);
+
+    return this.repository.declare(id, actorId, declaration);
   }
 }

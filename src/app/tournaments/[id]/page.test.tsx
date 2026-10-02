@@ -15,6 +15,7 @@ vi.mock("next-auth", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
   notFound: vi.fn(() => {
     throw new Error("Not found");
   }),
@@ -80,7 +81,7 @@ describe("TournamentBracketPage", () => {
     vi.mocked(getServerSession).mockResolvedValue({
       expires: "2099-01-01T00:00:00.000Z",
       user: {
-        id: "member-1",
+        id: "user-1",
         name: "Ada Lovelace",
         email: "ada@example.test",
         role: "MEMBER",
@@ -106,6 +107,10 @@ describe("TournamentBracketPage", () => {
       "2026-10-02T10:00:00.000Z",
     );
     expect(screen.getByRole("time")).toHaveTextContent(/\d{1,2}:\d{2}/);
+    expect(
+      screen.queryByRole("button", { name: "Déclarer le résultat" }),
+    ).not.toBeInTheDocument();
+    expect(document.getElementById("match-match-1")).toBeInTheDocument();
     expect(getBracket).toHaveBeenCalledWith("tournament-1");
   });
 
