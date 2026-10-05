@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Role } from "@/generated/prisma/enums";
@@ -23,6 +24,12 @@ export default async function AdminTournamentsPage() {
       <p>
         Les tournois sont créés en préparation et peuvent être activés plus
         tard.
+      </p>
+      <p>
+        <Link href="/admin/disputes">Arbitrer les résultats en attente</Link>
+      </p>
+      <p>
+        <Link href="/admin/audit">Consulter le journal d’audit</Link>
       </p>
       <CreateTournamentForm />
     </main>

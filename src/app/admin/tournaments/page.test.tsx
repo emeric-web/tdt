@@ -68,6 +68,6 @@ describe("AdminTournamentsPage", () => {
     const children = page.props.children as ReactNode[];
 
     expect(redirect).not.toHaveBeenCalled();
-    expect(children[2]).toEqual(<CreateTournamentForm />);
+    expect(children.at(-1)).toEqual(<CreateTournamentForm />);
   });
 });
