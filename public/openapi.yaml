@@ -5,8 +5,8 @@ info:
   description: >
     Contrat cible de l'API TdT. Les opérations marquées "planned" sont décrites
     pour guider les implémentations à venir. GET /api/tournaments,
-    POST /api/tournaments, GET/POST /api/users et les opérations d'inscription
-    et de têtes de série sont implémentés.
+    POST /api/tournaments, GET/POST /api/users, DELETE /api/users/me et les
+    opérations d'inscription et de têtes de série sont implémentés.
 servers:
   - url: /api
     description: API de même origine
@@ -158,6 +158,28 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /users/me:
+    delete:
+      tags: [Users]
+      summary: Anonymiser son compte membre
+      description: >
+        Réservé au membre connecté. Remplace son nom et son e-mail, supprime
+        son hash de mot de passe et conserve son identifiant afin de préserver
+        les références des matchs et du journal d'audit.
+      operationId: anonymizeCurrentMember
+      x-implementation-status: implemented
+      responses:
+        "204":
+          description: Compte anonymisé ; les données historiques sont conservées
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalError"
 
