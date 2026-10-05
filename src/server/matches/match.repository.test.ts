@@ -256,6 +256,60 @@ describe("PrismaMatchRepository.contestScore", () => {
       expect(transaction.match.updateMany).toHaveBeenCalledTimes(1);
       expect(transaction.auditLog.create).not.toHaveBeenCalled();
     });
+
+    it("rejects arbitration if the winner's next-round slot was filled concurrently", async () => {
+      transaction.match.updateMany
+        .mockResolvedValueOnce({ count: 1 })
+        .mockResolvedValueOnce({ count: 0 });
+
+      await expect(
+        new PrismaMatchRepository().arbitrate("match-1", "admin-1", {
+          winnerId: "player-1",
+          score: [
+            { p1: 6, p2: 4 },
+            { p1: 6, p2: 3 },
+          ],
+          resultKind: "NORMAL",
+        }),
+      ).rejects.toThrow(ConflictError);
+
+      expect(transaction.match.updateMany).toHaveBeenCalledTimes(2);
+      expect(transaction.auditLog.create).not.toHaveBeenCalled();
+      expect(transaction.match.findUniqueOrThrow).not.toHaveBeenCalled();
+    });
+
+    it("rejects final arbitration if the tournament was finished concurrently", async () => {
+      transaction.match.findUnique.mockResolvedValue({
+        ...matchForArbitration,
+        round: 3,
+        nextMatchId: null,
+        nextSlot: null,
+        tournament: {
+          ...matchForArbitration.tournament,
+          matches: [{ id: "match-1" }],
+        },
+      });
+      transaction.match.findFirst.mockResolvedValue(null);
+      transaction.tournament.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        new PrismaMatchRepository().arbitrate("match-1", "admin-1", {
+          winnerId: "player-1",
+          score: [
+            { p1: 6, p2: 4 },
+            { p1: 6, p2: 3 },
+          ],
+          resultKind: "NORMAL",
+        }),
+      ).rejects.toThrow(ConflictError);
+
+      expect(transaction.tournament.updateMany).toHaveBeenCalledWith({
+        where: { id: "tournament-1", status: "IN_PROGRESS" },
+        data: { status: "FINISHED" },
+      });
+      expect(transaction.auditLog.create).not.toHaveBeenCalled();
+      expect(transaction.match.findUniqueOrThrow).not.toHaveBeenCalled();
+    });
   });
 
   describe("PrismaMatchRepository.arbitrateScore", () => {
@@ -727,6 +781,27 @@ describe("PrismaMatchRepository.correctResult", () => {
       }),
     ).rejects.toThrow("La correction ne modifie pas le résultat existant.");
     expect(transaction.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a winner correction if the validated result changed concurrently", async () => {
+    transaction.match.updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
+
+    await expect(
+      new PrismaMatchRepository().correctResult("match-1", "admin-1", {
+        winnerId: "player-2",
+        score: [
+          { p1: 4, p2: 6 },
+          { p1: 3, p2: 6 },
+        ],
+        reason: "Correction vérifiée.",
+      }),
+    ).rejects.toThrow(ConflictError);
+
+    expect(transaction.match.updateMany).toHaveBeenCalledTimes(2);
+    expect(transaction.auditLog.create).not.toHaveBeenCalled();
+    expect(transaction.match.findUniqueOrThrow).not.toHaveBeenCalled();
   });
 });
 
