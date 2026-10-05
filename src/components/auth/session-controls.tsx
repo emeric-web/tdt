@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
+import { AnonymizeAccountButton } from "@/components/auth/anonymize-account";
 
 // Shows the signed-in user and sign-out action, or a sign-in link when anonymous.
 export function SessionControls() {
@@ -27,6 +28,7 @@ export function SessionControls() {
           <Link href="/admin/tournaments">Créer un tournoi</Link>
         </nav>
       )}
+      {session.user.role === "MEMBER" && <AnonymizeAccountButton />}
       <button type="button" onClick={() => signOut({ callbackUrl: "/login" })}>
         Se déconnecter
       </button>
