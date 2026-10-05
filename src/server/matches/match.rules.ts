@@ -197,3 +197,35 @@ export function guardMatchScoreContest(
     );
   }
 }
+
+export function guardMatchArbitration(
+  status: MatchStatus,
+  scoreStatus: ScoreStatus,
+  isBye: boolean,
+  tournamentStatus: TournamentStatus,
+  player1Id: string | null,
+  player2Id: string | null,
+): void {
+  if (
+    tournamentStatus !== "IN_PROGRESS" ||
+    isBye ||
+    !["DECLARED", "CORRECTION_PROPOSED", "DISPUTED"].includes(status)
+  ) {
+    throw new ConflictError("Ce match ne peut pas être arbitré.");
+  }
+
+  if (
+    (status === "DECLARED" && scoreStatus !== "DECLARED") ||
+    (status !== "DECLARED" && scoreStatus !== status)
+  ) {
+    throw new ConflictError(
+      "Les statuts du résultat et du score ne permettent pas cet arbitrage.",
+    );
+  }
+
+  if (player1Id === null || player2Id === null || player1Id === player2Id) {
+    throw new ConflictError(
+      "Les deux joueurs du match doivent être déterminés pour l’arbitrage.",
+    );
+  }
+}

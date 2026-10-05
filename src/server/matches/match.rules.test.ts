@@ -8,6 +8,7 @@ import {
 import {
   guardDeclaredWinner,
   guardMatchConfirmation,
+  guardMatchArbitration,
   guardMatchCorrectionProposal,
   guardMatchDeclaration,
   guardMatchScoreContest,
@@ -17,6 +18,60 @@ import {
 describe("guardMatchScheduling", () => {
   it("allows pending non-bye matches", () => {
     expect(() => guardMatchScheduling("PENDING", false)).not.toThrow();
+  });
+
+  describe("guardMatchArbitration", () => {
+    it("allows an active non-bye match with both players", () => {
+      expect(() =>
+        guardMatchArbitration(
+          "CORRECTION_PROPOSED",
+          "CORRECTION_PROPOSED",
+          false,
+          "IN_PROGRESS",
+          "player-1",
+          "player-2",
+        ),
+      ).not.toThrow();
+    });
+
+    it.each([
+      ["PENDING", false, "IN_PROGRESS", "player-1", "player-2"],
+      ["VALIDATED", false, "IN_PROGRESS", "player-1", "player-2"],
+      ["DECLARED", true, "IN_PROGRESS", "player-1", "player-2"],
+      ["DISPUTED", false, "FINISHED", "player-1", "player-2"],
+      ["DECLARED", false, "IN_PROGRESS", null, "player-2"],
+    ] as const)(
+      "rejects unavailable arbitration state %#",
+      (status, isBye, tournamentStatus, player1Id, player2Id) => {
+        expect(() =>
+          guardMatchArbitration(
+            status,
+            status === "PENDING"
+              ? "NONE"
+              : status === "VALIDATED"
+                ? "VALIDATED"
+                : status,
+            isBye,
+            tournamentStatus,
+            player1Id,
+            player2Id,
+          ),
+        ).toThrow(ConflictError);
+      },
+    );
+
+    it("rejects inconsistent result and score statuses", () => {
+      expect(() =>
+        guardMatchArbitration(
+          "CORRECTION_PROPOSED",
+          "DECLARED",
+          false,
+          "IN_PROGRESS",
+          "player-1",
+          "player-2",
+        ),
+      ).toThrow(ConflictError);
+    });
   });
 
   describe("guardMatchScoreContest", () => {

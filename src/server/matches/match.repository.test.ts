@@ -13,6 +13,9 @@ const { transaction, $transaction, findMany, findUnique } = vi.hoisted(() => {
     tournament: {
       updateMany: vi.fn(),
     },
+    auditLog: {
+      create: vi.fn(),
+    },
   };
   return {
     transaction,
@@ -59,6 +62,302 @@ describe("PrismaMatchRepository.contestScore", () => {
       proposedWinnerId: "player-2",
       proposedScore: submittedScore,
       score: null,
+    });
+  });
+
+  describe("PrismaMatchRepository.arbitrate", () => {
+    const matchForArbitration = {
+      id: "match-1",
+      tournamentId: "tournament-1",
+      round: 1,
+      position: 0,
+      status: "CORRECTION_PROPOSED",
+      scoreStatus: "CORRECTION_PROPOSED",
+      isBye: false,
+      player1Id: "player-1",
+      player2Id: "player-2",
+      winnerId: null,
+      declaredById: "player-1",
+      declaredWinnerId: "player-2",
+      declaredScore: [
+        { p1: 4, p2: 6 },
+        { p1: 6, p2: 3 },
+        { p1: 4, p2: 6 },
+      ],
+      proposedWinnerId: "player-1",
+      proposedScore: [
+        { p1: 6, p2: 4 },
+        { p1: 6, p2: 3 },
+      ],
+      score: null,
+      resultKind: null,
+      version: 7,
+      nextMatchId: "next-match",
+      nextSlot: 1,
+      tournament: {
+        status: "IN_PROGRESS",
+        finalSetSuperTiebreak: false,
+        matches: [{ id: "final-match" }],
+      },
+    };
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      $transaction.mockImplementation((callback) => callback(transaction));
+      transaction.match.findUnique.mockResolvedValue(matchForArbitration);
+      transaction.match.updateMany.mockResolvedValue({ count: 1 });
+      transaction.match.findUniqueOrThrow.mockResolvedValue({
+        id: "match-1",
+        status: "VALIDATED",
+        scoreStatus: "VALIDATED",
+        winnerId: "player-1",
+        proposedWinnerId: "player-1",
+      });
+      transaction.auditLog.create.mockResolvedValue({});
+    });
+
+    it("validates, advances, and audits an arbitrated result in one transaction", async () => {
+      const score = [
+        { p1: 6, p2: 4 },
+        { p1: 6, p2: 3 },
+      ];
+
+      await expect(
+        new PrismaMatchRepository().arbitrate("match-1", "admin-1", {
+          winnerId: "player-1",
+          score,
+          resultKind: "NORMAL",
+        }),
+      ).resolves.toMatchObject({
+        id: "match-1",
+        status: "VALIDATED",
+        scoreStatus: "VALIDATED",
+        winnerId: "player-1",
+      });
+
+      expect(transaction.match.updateMany).toHaveBeenNthCalledWith(1, {
+        where: {
+          id: "match-1",
+          status: "CORRECTION_PROPOSED",
+          scoreStatus: "CORRECTION_PROPOSED",
+          version: 7,
+          tournament: { status: "IN_PROGRESS" },
+        },
+        data: {
+          winnerId: "player-1",
+          score,
+          proposedWinnerId: "player-1",
+          proposedScore: score,
+          resultKind: "NORMAL",
+          status: "VALIDATED",
+          scoreStatus: "VALIDATED",
+          version: { increment: 1 },
+        },
+      });
+      expect(transaction.match.updateMany).toHaveBeenNthCalledWith(2, {
+        where: {
+          id: "next-match",
+          status: "PENDING",
+          player1Id: null,
+        },
+        data: { player1Id: "player-1", version: { increment: 1 } },
+      });
+      expect(transaction.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tournamentId: "tournament-1",
+            actorId: "admin-1",
+            action: "ARBITRATE",
+            entity: "Match",
+            entityId: "match-1",
+            before: expect.objectContaining({
+              status: "CORRECTION_PROPOSED",
+              winnerId: null,
+            }),
+            after: expect.objectContaining({
+              status: "VALIDATED",
+              winnerId: "player-1",
+            }),
+          }),
+        }),
+      );
+    });
+
+    it("closes the tournament when the arbitrated match is the final", async () => {
+      transaction.match.findUnique.mockResolvedValue({
+        ...matchForArbitration,
+        round: 3,
+        nextMatchId: null,
+        nextSlot: null,
+        tournament: {
+          ...matchForArbitration.tournament,
+          matches: [{ id: "match-1" }],
+        },
+      });
+      transaction.match.findFirst.mockResolvedValue(null);
+      transaction.tournament.updateMany.mockResolvedValue({ count: 1 });
+
+      await new PrismaMatchRepository().arbitrate("match-1", "admin-1", {
+        winnerId: "player-1",
+        score: [
+          { p1: 6, p2: 4 },
+          { p1: 6, p2: 3 },
+        ],
+        resultKind: "NORMAL",
+      });
+
+      expect(transaction.tournament.updateMany).toHaveBeenCalledWith({
+        where: { id: "tournament-1", status: "IN_PROGRESS" },
+        data: { status: "FINISHED" },
+      });
+      expect(transaction.auditLog.create).toHaveBeenCalledOnce();
+    });
+
+    it("records a forfeit with no fabricated score and a required reason", async () => {
+      await new PrismaMatchRepository().arbitrate("match-1", "admin-1", {
+        winnerId: "player-2",
+        score: [],
+        resultKind: "FORFEIT",
+        reason: "L’adversaire ne s’est pas présenté.",
+      });
+
+      expect(transaction.match.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            winnerId: "player-2",
+            score: [],
+            resultKind: "FORFEIT",
+          }),
+        }),
+      );
+      expect(transaction.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            action: "ARBITRATE",
+            reason: "L’adversaire ne s’est pas présenté.",
+          }),
+        }),
+      );
+    });
+
+    it("rejects a decision if another administrator changed the match", async () => {
+      transaction.match.updateMany.mockResolvedValueOnce({ count: 0 });
+
+      await expect(
+        new PrismaMatchRepository().arbitrate("match-1", "admin-1", {
+          winnerId: "player-1",
+          score: [
+            { p1: 6, p2: 4 },
+            { p1: 6, p2: 3 },
+          ],
+          resultKind: "NORMAL",
+        }),
+      ).rejects.toThrow(ConflictError);
+      expect(transaction.match.updateMany).toHaveBeenCalledTimes(1);
+      expect(transaction.auditLog.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("PrismaMatchRepository.arbitrateScore", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      $transaction.mockImplementation((callback) => callback(transaction));
+      transaction.match.findUnique.mockResolvedValue({
+        id: "match-1",
+        tournamentId: "tournament-1",
+        round: 1,
+        position: 0,
+        status: "CORRECTION_PROPOSED",
+        scoreStatus: "CORRECTION_PROPOSED",
+        isBye: false,
+        player1Id: "player-1",
+        player2Id: "player-2",
+        winnerId: null,
+        declaredById: "player-1",
+        declaredWinnerId: "player-2",
+        declaredScore: [
+          { p1: 6, p2: 4 },
+          { p1: 6, p2: 3 },
+        ],
+        proposedWinnerId: "player-2",
+        proposedScore: [
+          { p1: 6, p2: 4 },
+          { p1: 6, p2: 3 },
+        ],
+        score: null,
+        resultKind: null,
+        version: 8,
+        nextMatchId: "next-match",
+        nextSlot: 2,
+        tournament: {
+          status: "IN_PROGRESS",
+          finalSetSuperTiebreak: false,
+          matches: [{ id: "final-match" }],
+        },
+      });
+      transaction.match.updateMany.mockResolvedValue({ count: 1 });
+      transaction.match.findUniqueOrThrow.mockResolvedValue({
+        id: "match-1",
+        status: "VALIDATED",
+        scoreStatus: "VALIDATED",
+        winnerId: "player-2",
+      });
+      transaction.auditLog.create.mockResolvedValue({});
+    });
+
+    it("validates and advances the retained winner when arbitrating a score", async () => {
+      const score = [
+        { p1: 4, p2: 6 },
+        { p1: 6, p2: 3 },
+        { p1: 4, p2: 6 },
+      ];
+
+      await new PrismaMatchRepository().arbitrateScore("match-1", "admin-1", {
+        score,
+        resultKind: "NORMAL",
+      });
+
+      expect(transaction.match.updateMany).toHaveBeenNthCalledWith(1, {
+        where: expect.objectContaining({
+          id: "match-1",
+          status: "CORRECTION_PROPOSED",
+          version: 8,
+        }),
+        data: expect.objectContaining({
+          winnerId: "player-2",
+          score,
+          status: "VALIDATED",
+          scoreStatus: "VALIDATED",
+        }),
+      });
+      expect(transaction.match.updateMany).toHaveBeenNthCalledWith(2, {
+        where: {
+          id: "next-match",
+          status: "PENDING",
+          player2Id: null,
+        },
+        data: { player2Id: "player-2", version: { increment: 1 } },
+      });
+      expect(transaction.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ action: "ARBITRATE_SCORE" }),
+        }),
+      );
+    });
+
+    it("rejects a score that determines a different winner", async () => {
+      await expect(
+        new PrismaMatchRepository().arbitrateScore("match-1", "admin-1", {
+          score: [
+            { p1: 6, p2: 4 },
+            { p1: 6, p2: 3 },
+          ],
+          resultKind: "NORMAL",
+        }),
+      ).rejects.toThrow(
+        "Le score arbitré ne correspond pas au vainqueur proposé.",
+      );
+      expect(transaction.match.updateMany).not.toHaveBeenCalled();
     });
   });
 
@@ -144,6 +443,7 @@ describe("PrismaMatchRepository.getDetails", () => {
       player2: { id: "player-2", name: "Grace Hopper" },
       status: "PENDING",
       scoreStatus: "NONE",
+      resultKind: null,
       winnerId: null,
       declaredById: null,
       declaredWinnerId: null,
@@ -177,6 +477,7 @@ describe("PrismaMatchRepository.getDetails", () => {
         player2: { id: "player-2", name: "Grace Hopper" },
         status: "PENDING",
         scoreStatus: "NONE",
+        resultKind: null,
         winnerId: null,
         declaredById: null,
         declaredWinnerId: null,
@@ -188,6 +489,68 @@ describe("PrismaMatchRepository.getDetails", () => {
         court: "Court 2",
       },
     });
+  });
+});
+
+describe("PrismaMatchRepository.listForArbitration", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("lists unresolved match proposals with public player and tournament data", async () => {
+    findMany.mockResolvedValue([
+      {
+        id: "match-1",
+        tournamentId: "tournament-1",
+        round: 2,
+        position: 0,
+        status: "CORRECTION_PROPOSED",
+        scoreStatus: "CORRECTION_PROPOSED",
+        declaredWinnerId: "player-1",
+        proposedWinnerId: "player-2",
+        declaredScore: [
+          { p1: 6, p2: 4 },
+          { p1: 6, p2: 3 },
+        ],
+        proposedScore: [
+          { p1: 4, p2: 6 },
+          { p1: 3, p2: 6 },
+        ],
+        player1: { id: "player-1", name: "Ada Lovelace" },
+        player2: { id: "player-2", name: "Grace Hopper" },
+        tournament: {
+          name: "Club Open",
+          finalSetSuperTiebreak: false,
+        },
+      },
+    ]);
+
+    await expect(
+      new PrismaMatchRepository().listForArbitration(),
+    ).resolves.toEqual([
+      {
+        id: "match-1",
+        tournamentId: "tournament-1",
+        tournamentName: "Club Open",
+        round: 2,
+        position: 0,
+        status: "CORRECTION_PROPOSED",
+        scoreStatus: "CORRECTION_PROPOSED",
+        declaredWinnerId: "player-1",
+        proposedWinnerId: "player-2",
+        declaredScore: [
+          { p1: 6, p2: 4 },
+          { p1: 6, p2: 3 },
+        ],
+        proposedScore: [
+          { p1: 4, p2: 6 },
+          { p1: 3, p2: 6 },
+        ],
+        player1: { id: "player-1", name: "Ada Lovelace" },
+        player2: { id: "player-2", name: "Grace Hopper" },
+        finalSetSuperTiebreak: false,
+      },
+    ]);
   });
 });
 

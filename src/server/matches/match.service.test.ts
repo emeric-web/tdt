@@ -23,6 +23,9 @@ describe("MatchService", () => {
       confirm: vi.fn(),
       proposeCorrection: vi.fn(),
       contestScore: vi.fn(),
+      listForArbitration: vi.fn(),
+      arbitrate: vi.fn(),
+      arbitrateScore: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -46,6 +49,9 @@ describe("MatchService", () => {
       confirm: vi.fn(),
       proposeCorrection: vi.fn(),
       contestScore: vi.fn(),
+      listForArbitration: vi.fn(),
+      arbitrate: vi.fn(),
+      arbitrateScore: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -70,6 +76,9 @@ describe("MatchService", () => {
       confirm: vi.fn(),
       proposeCorrection: vi.fn(),
       contestScore: vi.fn(),
+      listForArbitration: vi.fn(),
+      arbitrate: vi.fn(),
+      arbitrateScore: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -106,6 +115,9 @@ describe("MatchService", () => {
       confirm: vi.fn(),
       proposeCorrection: vi.fn(),
       contestScore: vi.fn(),
+      listForArbitration: vi.fn(),
+      arbitrate: vi.fn(),
+      arbitrateScore: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -138,6 +150,9 @@ describe("MatchService", () => {
       confirm: vi.fn(),
       proposeCorrection: vi.fn(),
       contestScore: vi.fn(),
+      listForArbitration: vi.fn(),
+      arbitrate: vi.fn(),
+      arbitrateScore: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -170,6 +185,9 @@ describe("MatchService", () => {
       confirm: vi.fn().mockResolvedValue(confirmedMatch),
       proposeCorrection: vi.fn(),
       contestScore: vi.fn(),
+      listForArbitration: vi.fn(),
+      arbitrate: vi.fn(),
+      arbitrateScore: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -202,6 +220,9 @@ describe("MatchService", () => {
       confirm: vi.fn(),
       proposeCorrection: vi.fn().mockResolvedValue(proposedMatch),
       contestScore: vi.fn(),
+      listForArbitration: vi.fn(),
+      arbitrate: vi.fn(),
+      arbitrateScore: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -224,6 +245,9 @@ describe("MatchService", () => {
       confirm: vi.fn(),
       proposeCorrection: vi.fn(),
       contestScore: vi.fn(),
+      listForArbitration: vi.fn(),
+      arbitrate: vi.fn(),
+      arbitrateScore: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -261,6 +285,9 @@ describe("MatchService", () => {
       confirm: vi.fn(),
       proposeCorrection: vi.fn(),
       contestScore: vi.fn().mockResolvedValue(contestedMatch),
+      listForArbitration: vi.fn(),
+      arbitrate: vi.fn(),
+      arbitrateScore: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -283,6 +310,9 @@ describe("MatchService", () => {
       confirm: vi.fn(),
       proposeCorrection: vi.fn(),
       contestScore: vi.fn(),
+      listForArbitration: vi.fn(),
+      arbitrate: vi.fn(),
+      arbitrateScore: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -293,5 +323,46 @@ describe("MatchService", () => {
       }),
     ).toThrow();
     expect(repository.contestScore).not.toHaveBeenCalled();
+  });
+
+  it("validates and delegates complete result and score arbitration", async () => {
+    const repository = {
+      listUpcomingForPlayer: vi.fn(),
+      getDetails: vi.fn(),
+      schedule: vi.fn(),
+      declare: vi.fn(),
+      confirm: vi.fn(),
+      proposeCorrection: vi.fn(),
+      contestScore: vi.fn(),
+      listForArbitration: vi.fn(),
+      arbitrate: vi.fn().mockResolvedValue({ id: "match-1" }),
+      arbitrateScore: vi.fn().mockResolvedValue({ id: "match-1" }),
+    };
+    const service = new MatchService(repository);
+    const score = [
+      { p1: 6, p2: 4 },
+      { p1: 6, p2: 3 },
+    ];
+
+    await expect(
+      service.arbitrate("match-1", "admin-1", {
+        winnerId: "player-1",
+        score,
+        resultKind: "NORMAL",
+      }),
+    ).resolves.toEqual({ id: "match-1" });
+    await expect(
+      service.arbitrateScore("match-1", "admin-1", { score }),
+    ).resolves.toEqual({ id: "match-1" });
+    expect(repository.arbitrate).toHaveBeenCalledWith("match-1", "admin-1", {
+      winnerId: "player-1",
+      score,
+      resultKind: "NORMAL",
+    });
+    expect(repository.arbitrateScore).toHaveBeenCalledWith(
+      "match-1",
+      "admin-1",
+      { score, resultKind: "NORMAL" },
+    );
   });
 });

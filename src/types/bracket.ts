@@ -9,6 +9,8 @@ export type MatchStatus =
 export type ScoreStatus =
   "NONE" | "DECLARED" | "CORRECTION_PROPOSED" | "DISPUTED" | "VALIDATED";
 
+export type MatchResultKind = "NORMAL" | "ABANDON" | "FORFEIT" | "BYE";
+
 export type SetScore = {
   p1: number;
   p2: number;
@@ -27,6 +29,7 @@ export type MatchDto = {
   declaredById: string | null;
   declaredWinnerId?: string | null;
   proposedWinnerId?: string | null;
+  resultKind?: MatchResultKind | null;
   score: SetScore[] | null;
   proposedScore: SetScore[] | null;
   isBye: boolean;

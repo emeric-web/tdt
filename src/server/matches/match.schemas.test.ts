@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  arbitrateResultSchema,
+  arbitrateScoreSchema,
   contestScoreSchema,
   declareResultSchema,
   proposeCorrectionSchema,
@@ -94,6 +96,66 @@ describe("proposeCorrectionSchema", () => {
         score: [{ p1: 6, p2: 4 }],
       }).success,
     ).toBe(false);
+  });
+
+  describe("arbitrateResultSchema", () => {
+    it("accepts a normal decision with a complete score", () => {
+      expect(
+        arbitrateResultSchema.safeParse({
+          winnerId: "player-1",
+          score: [
+            { p1: 6, p2: 4 },
+            { p1: 6, p2: 3 },
+          ],
+          resultKind: "NORMAL",
+        }).success,
+      ).toBe(true);
+    });
+
+    it("requires a reason for abandonment and forfeit and an empty forfeit score", () => {
+      expect(
+        arbitrateResultSchema.safeParse({
+          winnerId: "player-1",
+          score: [{ p1: 3, p2: 1 }],
+          resultKind: "ABANDON",
+        }).success,
+      ).toBe(false);
+      expect(
+        arbitrateResultSchema.safeParse({
+          winnerId: "player-1",
+          score: [{ p1: 6, p2: 4 }],
+          resultKind: "FORFEIT",
+          reason: "Absence",
+        }).success,
+      ).toBe(false);
+      expect(
+        arbitrateResultSchema.safeParse({
+          winnerId: "player-1",
+          score: [],
+          resultKind: "FORFEIT",
+          reason: "Absence",
+        }).success,
+      ).toBe(true);
+    });
+  });
+
+  describe("arbitrateScoreSchema", () => {
+    it("defaults to a normal score decision and requires a reason for abandonment", () => {
+      expect(
+        arbitrateScoreSchema.parse({
+          score: [
+            { p1: 6, p2: 4 },
+            { p1: 6, p2: 3 },
+          ],
+        }).resultKind,
+      ).toBe("NORMAL");
+      expect(
+        arbitrateScoreSchema.safeParse({
+          score: [{ p1: 4, p2: 2 }],
+          resultKind: "ABANDON",
+        }).success,
+      ).toBe(false);
+    });
   });
 
   describe("contestScoreSchema", () => {

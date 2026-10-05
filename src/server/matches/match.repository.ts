@@ -7,6 +7,8 @@ import {
   NotFoundError,
 } from "@/server/errors/app-error";
 import type {
+  ArbitrateResultInput,
+  ArbitrateScoreInput,
   ContestScoreInput,
   DeclareResultInput,
   ProposeCorrectionInput,
@@ -17,10 +19,15 @@ import {
   guardMatchDeclaration,
   guardMatchConfirmation,
   guardMatchCorrectionProposal,
+  guardMatchArbitration,
   guardMatchScoreContest,
   guardMatchScheduling,
 } from "@/server/matches/match.rules";
-import { scoreSchema, validateScore } from "@/server/score/score.validator";
+import {
+  persistedScoreSchema,
+  validateAbandonScore,
+  validateScore,
+} from "@/server/score/score.validator";
 import { roundLabel } from "@/lib/bracket";
 import type { SetScore } from "@/types/bracket";
 
@@ -29,7 +36,7 @@ function parseStoredScore(value: Prisma.JsonValue | null): SetScore[] | null {
     return null;
   }
 
-  const result = scoreSchema.safeParse(value);
+  const result = persistedScoreSchema.safeParse(value);
   if (!result.success) {
     throw new Error("Le score enregistré du match a un format invalide.");
   }
@@ -103,6 +110,7 @@ export type MatchDetails = {
     player2: { id: string; name: string } | null;
     status: Match["status"];
     scoreStatus: Match["scoreStatus"];
+    resultKind: Match["resultKind"];
     winnerId: string | null;
     declaredById: string | null;
     declaredWinnerId: string | null;
@@ -113,6 +121,23 @@ export type MatchDetails = {
     scheduledAt: string | null;
     court: string | null;
   };
+};
+
+export type ArbitrationMatch = {
+  id: string;
+  tournamentId: string;
+  tournamentName: string;
+  round: number;
+  position: number;
+  status: Match["status"];
+  scoreStatus: Match["scoreStatus"];
+  declaredWinnerId: string | null;
+  proposedWinnerId: string | null;
+  declaredScore: SetScore[] | null;
+  proposedScore: SetScore[] | null;
+  player1: { id: string; name: string } | null;
+  player2: { id: string; name: string } | null;
+  finalSetSuperTiebreak: boolean;
 };
 
 export interface MatchRepository {
@@ -135,6 +160,210 @@ export interface MatchRepository {
     actorId: string,
     data: ContestScoreInput,
   ): Promise<DeclaredMatch>;
+  listForArbitration(): Promise<ArbitrationMatch[]>;
+  arbitrate(
+    id: string,
+    actorId: string,
+    data: ArbitrateResultInput,
+  ): Promise<DeclaredMatch>;
+  arbitrateScore(
+    id: string,
+    actorId: string,
+    data: ArbitrateScoreInput,
+  ): Promise<DeclaredMatch>;
+}
+
+type ArbitrationTransactionMatch = {
+  id: string;
+  tournamentId: string;
+  round: number;
+  position: number;
+  status: Match["status"];
+  scoreStatus: Match["scoreStatus"];
+  isBye: boolean;
+  player1Id: string | null;
+  player2Id: string | null;
+  winnerId: string | null;
+  declaredById: string | null;
+  declaredWinnerId: string | null;
+  declaredScore: Prisma.JsonValue | null;
+  proposedWinnerId: string | null;
+  proposedScore: Prisma.JsonValue | null;
+  score: Prisma.JsonValue | null;
+  resultKind: Match["resultKind"];
+  version: number;
+  nextMatchId: string | null;
+  nextSlot: number | null;
+  tournament: {
+    status: "DRAFT" | "IN_PROGRESS" | "FINISHED";
+    finalSetSuperTiebreak: boolean;
+    matches: { id: string }[];
+  };
+};
+
+async function persistArbitration(
+  transaction: Prisma.TransactionClient,
+  match: ArbitrationTransactionMatch,
+  actorId: string,
+  winnerId: string,
+  score: { p1: number; p2: number; tb?: number }[],
+  resultKind: "NORMAL" | "ABANDON" | "FORFEIT",
+  reason: string | undefined,
+  action: "ARBITRATE" | "ARBITRATE_SCORE",
+): Promise<DeclaredMatch> {
+  const isFinal =
+    match.tournament.matches[0]?.id === match.id && match.nextMatchId === null;
+
+  if (isFinal) {
+    const unfinishedMatch = await transaction.match.findFirst({
+      where: {
+        tournamentId: match.tournamentId,
+        id: { not: match.id },
+        status: { not: "VALIDATED" },
+      },
+      select: { id: true },
+    });
+
+    if (unfinishedMatch) {
+      throw new ConflictError(
+        "Le tournoi contient encore des matchs non validés.",
+      );
+    }
+  }
+
+  const before = {
+    status: match.status,
+    scoreStatus: match.scoreStatus,
+    winnerId: match.winnerId,
+    declaredWinnerId: match.declaredWinnerId,
+    declaredScore: match.declaredScore,
+    proposedWinnerId: match.proposedWinnerId,
+    proposedScore: match.proposedScore,
+    score: match.score,
+    resultKind: match.resultKind,
+  };
+  const storedScore = score.map((set) => ({
+    p1: set.p1,
+    p2: set.p2,
+    ...(set.tb === undefined ? {} : { tb: set.tb }),
+  }));
+  const updated = await transaction.match.updateMany({
+    where: {
+      id: match.id,
+      status: match.status,
+      scoreStatus: match.scoreStatus,
+      version: match.version,
+      tournament: { status: "IN_PROGRESS" },
+    },
+    data: {
+      winnerId,
+      score: storedScore,
+      proposedWinnerId: winnerId,
+      proposedScore: storedScore,
+      resultKind,
+      status: "VALIDATED",
+      scoreStatus: "VALIDATED",
+      version: { increment: 1 },
+    },
+  });
+
+  if (updated.count !== 1) {
+    throw new ConflictError(
+      "Le match a changé. Rechargez la page avant de réessayer.",
+    );
+  }
+
+  if (isFinal) {
+    const finished = await transaction.tournament.updateMany({
+      where: { id: match.tournamentId, status: "IN_PROGRESS" },
+      data: { status: "FINISHED" },
+    });
+
+    if (finished.count !== 1) {
+      throw new ConflictError(
+        "Le tournoi a changé. Rechargez la page avant de réessayer.",
+      );
+    }
+  } else {
+    if (
+      match.nextMatchId === null ||
+      (match.nextSlot !== 1 && match.nextSlot !== 2)
+    ) {
+      throw new ConflictError(
+        "Le match n’est pas relié au tour suivant du tableau.",
+      );
+    }
+
+    const nextMatchWhere =
+      match.nextSlot === 1
+        ? {
+            id: match.nextMatchId,
+            status: "PENDING" as const,
+            player1Id: null,
+          }
+        : {
+            id: match.nextMatchId,
+            status: "PENDING" as const,
+            player2Id: null,
+          };
+    const nextMatchData =
+      match.nextSlot === 1
+        ? { player1Id: winnerId, version: { increment: 1 } }
+        : { player2Id: winnerId, version: { increment: 1 } };
+    const advanced = await transaction.match.updateMany({
+      where: nextMatchWhere,
+      data: nextMatchData,
+    });
+
+    if (advanced.count !== 1) {
+      throw new ConflictError(
+        "La place du vainqueur dans le tour suivant a changé.",
+      );
+    }
+  }
+
+  await transaction.auditLog.create({
+    data: {
+      tournamentId: match.tournamentId,
+      actorId,
+      action,
+      reason,
+      entity: "Match",
+      entityId: match.id,
+      before,
+      after: {
+        status: "VALIDATED",
+        scoreStatus: "VALIDATED",
+        winnerId,
+        proposedWinnerId: winnerId,
+        score: storedScore,
+        resultKind,
+      },
+    },
+  });
+
+  return transaction.match.findUniqueOrThrow({
+    where: { id: match.id },
+    select: {
+      id: true,
+      tournamentId: true,
+      round: true,
+      position: true,
+      winnerId: true,
+      declaredById: true,
+      declaredWinnerId: true,
+      declaredScore: true,
+      proposedWinnerId: true,
+      scoreStatus: true,
+      status: true,
+      resultKind: true,
+      score: true,
+      proposedScore: true,
+      isBye: true,
+      scheduledAt: true,
+      court: true,
+    },
+  });
 }
 
 export class PrismaMatchRepository implements MatchRepository {
@@ -151,6 +380,7 @@ export class PrismaMatchRepository implements MatchRepository {
         player2: { select: { id: true, name: true } },
         status: true,
         scoreStatus: true,
+        resultKind: true,
         winnerId: true,
         declaredById: true,
         declaredWinnerId: true,
@@ -192,6 +422,7 @@ export class PrismaMatchRepository implements MatchRepository {
         player2: match.player2,
         status: match.status,
         scoreStatus: match.scoreStatus,
+        resultKind: match.resultKind,
         winnerId: match.winnerId,
         declaredById: match.declaredById,
         declaredWinnerId: match.declaredWinnerId,
@@ -839,6 +1070,260 @@ export class PrismaMatchRepository implements MatchRepository {
           court: true,
         },
       });
+    });
+  }
+
+  /** Returns unresolved match results for the administrator's arbitration queue. */
+  async listForArbitration(): Promise<ArbitrationMatch[]> {
+    const matches = await prisma.match.findMany({
+      where: {
+        status: { in: ["DECLARED", "CORRECTION_PROPOSED", "DISPUTED"] },
+        tournament: { status: "IN_PROGRESS" },
+        isBye: false,
+      },
+      orderBy: [
+        { tournament: { name: "asc" } },
+        { round: "desc" },
+        { position: "asc" },
+      ],
+      select: {
+        id: true,
+        tournamentId: true,
+        round: true,
+        position: true,
+        status: true,
+        scoreStatus: true,
+        declaredWinnerId: true,
+        proposedWinnerId: true,
+        declaredScore: true,
+        proposedScore: true,
+        player1: { select: { id: true, name: true } },
+        player2: { select: { id: true, name: true } },
+        tournament: {
+          select: {
+            name: true,
+            finalSetSuperTiebreak: true,
+          },
+        },
+      },
+    });
+
+    return matches.map((match) => ({
+      id: match.id,
+      tournamentId: match.tournamentId,
+      tournamentName: match.tournament.name,
+      round: match.round,
+      position: match.position,
+      status: match.status,
+      scoreStatus: match.scoreStatus,
+      declaredWinnerId: match.declaredWinnerId,
+      proposedWinnerId: match.proposedWinnerId,
+      declaredScore: parseStoredScore(match.declaredScore),
+      proposedScore: parseStoredScore(match.proposedScore),
+      player1: match.player1,
+      player2: match.player2,
+      finalSetSuperTiebreak: match.tournament.finalSetSuperTiebreak,
+    }));
+  }
+
+  /** Resolves a disputed result, advances the winner, and logs the decision atomically. */
+  async arbitrate(
+    id: string,
+    actorId: string,
+    data: ArbitrateResultInput,
+  ): Promise<DeclaredMatch> {
+    return prisma.$transaction(async (transaction) => {
+      const match = await transaction.match.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          tournamentId: true,
+          round: true,
+          position: true,
+          status: true,
+          scoreStatus: true,
+          isBye: true,
+          player1Id: true,
+          player2Id: true,
+          winnerId: true,
+          declaredById: true,
+          declaredWinnerId: true,
+          declaredScore: true,
+          proposedWinnerId: true,
+          proposedScore: true,
+          score: true,
+          resultKind: true,
+          version: true,
+          nextMatchId: true,
+          nextSlot: true,
+          tournament: {
+            select: {
+              status: true,
+              finalSetSuperTiebreak: true,
+              matches: {
+                orderBy: [{ round: "desc" }, { position: "asc" }],
+                take: 1,
+                select: { id: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (!match) {
+        throw new NotFoundError("Match introuvable.");
+      }
+
+      guardMatchArbitration(
+        match.status,
+        match.scoreStatus,
+        match.isBye,
+        match.tournament.status,
+        match.player1Id,
+        match.player2Id,
+      );
+
+      if (
+        data.winnerId !== match.player1Id &&
+        data.winnerId !== match.player2Id
+      ) {
+        throw new BadRequestError(
+          "Le vainqueur doit être l’un des joueurs du match.",
+        );
+      }
+
+      if (data.resultKind === "NORMAL") {
+        const scoreWinner = validateScore(
+          data.score,
+          match.tournament.finalSetSuperTiebreak,
+        );
+        const scoreWinnerId =
+          scoreWinner === "p1" ? match.player1Id : match.player2Id;
+        if (scoreWinnerId !== data.winnerId) {
+          throw new BadRequestError(
+            "Le vainqueur indiqué ne correspond pas au score.",
+          );
+        }
+      } else if (data.resultKind === "ABANDON") {
+        validateAbandonScore(
+          data.score,
+          match.tournament.finalSetSuperTiebreak,
+        );
+      } else if (data.score.length !== 0) {
+        throw new BadRequestError(
+          "Un forfait ne peut pas comporter de score sportif.",
+        );
+      }
+
+      return persistArbitration(
+        transaction,
+        match,
+        actorId,
+        data.winnerId,
+        data.score,
+        data.resultKind,
+        data.reason,
+        "ARBITRATE",
+      );
+    });
+  }
+
+  /** Resolves a score dispute, validates its winner, advances it, and logs the decision atomically. */
+  async arbitrateScore(
+    id: string,
+    actorId: string,
+    data: ArbitrateScoreInput,
+  ): Promise<DeclaredMatch> {
+    return prisma.$transaction(async (transaction) => {
+      const match = await transaction.match.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          tournamentId: true,
+          round: true,
+          position: true,
+          status: true,
+          scoreStatus: true,
+          isBye: true,
+          player1Id: true,
+          player2Id: true,
+          winnerId: true,
+          declaredById: true,
+          declaredWinnerId: true,
+          declaredScore: true,
+          proposedWinnerId: true,
+          proposedScore: true,
+          score: true,
+          resultKind: true,
+          version: true,
+          nextMatchId: true,
+          nextSlot: true,
+          tournament: {
+            select: {
+              status: true,
+              finalSetSuperTiebreak: true,
+              matches: {
+                orderBy: [{ round: "desc" }, { position: "asc" }],
+                take: 1,
+                select: { id: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (!match) {
+        throw new NotFoundError("Match introuvable.");
+      }
+
+      guardMatchArbitration(
+        match.status,
+        match.scoreStatus,
+        match.isBye,
+        match.tournament.status,
+        match.player1Id,
+        match.player2Id,
+      );
+
+      const winnerId = match.proposedWinnerId ?? match.declaredWinnerId;
+      if (
+        winnerId === null ||
+        (winnerId !== match.player1Id && winnerId !== match.player2Id)
+      ) {
+        throw new ConflictError(
+          "Le vainqueur proposé ne participe pas au match.",
+        );
+      }
+
+      if (data.resultKind === "NORMAL") {
+        const scoreWinner = validateScore(
+          data.score,
+          match.tournament.finalSetSuperTiebreak,
+        );
+        const scoreWinnerId =
+          scoreWinner === "p1" ? match.player1Id : match.player2Id;
+        if (scoreWinnerId !== winnerId) {
+          throw new BadRequestError(
+            "Le score arbitré ne correspond pas au vainqueur proposé.",
+          );
+        }
+      } else {
+        validateAbandonScore(
+          data.score,
+          match.tournament.finalSetSuperTiebreak,
+        );
+      }
+
+      return persistArbitration(
+        transaction,
+        match,
+        actorId,
+        winnerId,
+        data.score,
+        data.resultKind,
+        data.reason,
+        "ARBITRATE_SCORE",
+      );
     });
   }
 }

@@ -2,7 +2,11 @@ import { ZodError } from "zod";
 import { describe, expect, it } from "vitest";
 
 import { BadRequestError } from "@/server/errors/app-error";
-import { scoreSchema, validateScore } from "@/server/score/score.validator";
+import {
+  scoreSchema,
+  validateAbandonScore,
+  validateScore,
+} from "@/server/score/score.validator";
 
 describe("scoreSchema", () => {
   it("accepts two or three sets with non-negative integer games", () => {
@@ -102,6 +106,37 @@ describe("validateScore", () => {
         false,
       ),
     ).toBe("p1");
+  });
+
+  describe("validateAbandonScore", () => {
+    it("preserves completed sets and an incomplete final set", () => {
+      expect(
+        validateAbandonScore(
+          [
+            { p1: 6, p2: 4 },
+            { p1: 4, p2: 6 },
+            { p1: 3, p2: 2 },
+          ],
+          false,
+        ),
+      ).toHaveLength(3);
+    });
+
+    it("allows a forfeit to be represented without invented games only at the service layer", () => {
+      expect(() => validateAbandonScore([], false)).toThrow();
+    });
+
+    it.each([
+      [
+        { p1: 6, p2: 4 },
+        { p1: 4, p2: 6 },
+        { p1: 6, p2: 1 },
+      ],
+      [{ p1: 8, p2: 4 }],
+      [{ p1: 4, p2: 2, tb: 3 }],
+    ])("rejects an invalid abandonment score sequence %#", (...score) => {
+      expect(() => validateAbandonScore(score, false)).toThrow(BadRequestError);
+    });
   });
 
   it.each([

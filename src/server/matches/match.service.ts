@@ -1,14 +1,21 @@
 import type {
   MatchRepository,
   MatchDetails,
+  ArbitrationMatch,
   ScheduledMatch,
   UpcomingMatch,
 } from "@/server/matches/match.repository";
 import {
+  arbitrateResultSchema,
+  arbitrateScoreSchema,
   contestScoreSchema,
   declareResultSchema,
   proposeCorrectionSchema,
   scheduleMatchSchema,
+} from "@/server/matches/match.schemas";
+import type {
+  ArbitrateResultInput,
+  ArbitrateScoreInput,
 } from "@/server/matches/match.schemas";
 import type { DeclaredMatch } from "@/server/matches/match.repository";
 
@@ -64,5 +71,32 @@ export class MatchService {
     const contest = contestScoreSchema.parse(input);
 
     return this.repository.contestScore(id, actorId, contest);
+  }
+
+  /** Lists unresolved results for administrator arbitration. */
+  listForArbitration(): Promise<ArbitrationMatch[]> {
+    return this.repository.listForArbitration();
+  }
+
+  /** Validates and records an administrative result decision. */
+  arbitrate(
+    id: string,
+    actorId: string,
+    input: unknown,
+  ): Promise<DeclaredMatch> {
+    const decision: ArbitrateResultInput = arbitrateResultSchema.parse(input);
+
+    return this.repository.arbitrate(id, actorId, decision);
+  }
+
+  /** Validates and records an administrative score decision. */
+  arbitrateScore(
+    id: string,
+    actorId: string,
+    input: unknown,
+  ): Promise<DeclaredMatch> {
+    const decision: ArbitrateScoreInput = arbitrateScoreSchema.parse(input);
+
+    return this.repository.arbitrateScore(id, actorId, decision);
   }
 }

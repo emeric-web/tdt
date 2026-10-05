@@ -8,6 +8,7 @@ import {
 } from "@/server/bracket/bracket.generator";
 import { prisma } from "@/server/db/prisma";
 import { ConflictError, NotFoundError } from "@/server/errors/app-error";
+import { persistedScoreSchema } from "@/server/score/score.validator";
 import {
   guardActivation,
   guardDraw,
@@ -109,26 +110,12 @@ function parseScore(value: Prisma.JsonValue | null): SetScore[] | null {
     return null;
   }
 
-  if (
-    !Array.isArray(value) ||
-    value.length < 2 ||
-    value.length > 3 ||
-    !value.every(
-      (set) =>
-        typeof set === "object" &&
-        set !== null &&
-        !Array.isArray(set) &&
-        "p1" in set &&
-        typeof set.p1 === "number" &&
-        "p2" in set &&
-        typeof set.p2 === "number" &&
-        (!("tb" in set) || typeof set.tb === "number"),
-    )
-  ) {
+  const result = persistedScoreSchema.safeParse(value);
+  if (!result.success) {
     throw new Error("Le score enregistré du match a un format invalide.");
   }
 
-  return value as SetScore[];
+  return result.data;
 }
 
 export class PrismaTournamentRepository implements TournamentRepository {
@@ -243,6 +230,7 @@ export class PrismaTournamentRepository implements TournamentRepository {
             declaredById: true,
             declaredWinnerId: true,
             proposedWinnerId: true,
+            resultKind: true,
             score: true,
             proposedScore: true,
             isBye: true,
@@ -269,6 +257,7 @@ export class PrismaTournamentRepository implements TournamentRepository {
       declaredById: match.declaredById,
       declaredWinnerId: match.declaredWinnerId,
       proposedWinnerId: match.proposedWinnerId,
+      resultKind: match.resultKind,
       score: parseScore(match.score),
       proposedScore: parseScore(match.proposedScore),
       isBye: match.isBye,
