@@ -4,6 +4,7 @@ import {
   arbitrateResultSchema,
   arbitrateScoreSchema,
   contestScoreSchema,
+  correctResultSchema,
   declareResultSchema,
   proposeCorrectionSchema,
   scheduleMatchSchema,
@@ -155,6 +156,40 @@ describe("proposeCorrectionSchema", () => {
           resultKind: "ABANDON",
         }).success,
       ).toBe(false);
+    });
+
+    describe("correctResultSchema", () => {
+      it("accepts a score-only correction and a winner correction with a reason", () => {
+        expect(
+          correctResultSchema.safeParse({
+            score: [
+              { p1: 6, p2: 4 },
+              { p1: 6, p2: 3 },
+            ],
+            reason: "Vérification de la feuille.",
+          }).success,
+        ).toBe(true);
+        expect(
+          correctResultSchema.safeParse({
+            winnerId: "player-2",
+            score: [
+              { p1: 4, p2: 6 },
+              { p1: 3, p2: 6 },
+            ],
+            reason: "Erreur de saisie du vainqueur.",
+          }).success,
+        ).toBe(true);
+      });
+
+      it.each([
+        {},
+        { reason: "No change specified" },
+        { score: [{ p1: -1, p2: 4 }], reason: "Invalid score value" },
+        { winnerId: "", reason: "Missing winner" },
+        { winnerId: "player-1", unexpected: true, reason: "Strict input" },
+      ])("rejects an invalid correction payload %#", (payload) => {
+        expect(correctResultSchema.safeParse(payload).success).toBe(false);
+      });
     });
   });
 

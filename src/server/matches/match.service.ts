@@ -2,6 +2,7 @@ import type {
   MatchRepository,
   MatchDetails,
   ArbitrationMatch,
+  CorrectionMatch,
   ScheduledMatch,
   UpcomingMatch,
 } from "@/server/matches/match.repository";
@@ -9,6 +10,7 @@ import {
   arbitrateResultSchema,
   arbitrateScoreSchema,
   contestScoreSchema,
+  correctResultSchema,
   declareResultSchema,
   proposeCorrectionSchema,
   scheduleMatchSchema,
@@ -16,6 +18,7 @@ import {
 import type {
   ArbitrateResultInput,
   ArbitrateScoreInput,
+  CorrectResultInput,
 } from "@/server/matches/match.schemas";
 import type { DeclaredMatch } from "@/server/matches/match.repository";
 
@@ -98,5 +101,21 @@ export class MatchService {
     const decision: ArbitrateScoreInput = arbitrateScoreSchema.parse(input);
 
     return this.repository.arbitrateScore(id, actorId, decision);
+  }
+
+  /** Lists validated results that remain correctable while their tournament is active. */
+  listForCorrection(): Promise<CorrectionMatch[]> {
+    return this.repository.listForCorrection();
+  }
+
+  /** Validates and records an administrative correction to a validated result. */
+  correctResult(
+    id: string,
+    actorId: string,
+    input: unknown,
+  ): Promise<DeclaredMatch> {
+    const correction: CorrectResultInput = correctResultSchema.parse(input);
+
+    return this.repository.correctResult(id, actorId, correction);
   }
 }

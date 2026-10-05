@@ -29,6 +29,9 @@ export default async function AdminTournamentsPage() {
         <Link href="/admin/disputes">Arbitrer les résultats en attente</Link>
       </p>
       <p>
+        <Link href="/admin/corrections">Corriger un résultat validé</Link>
+      </p>
+      <p>
         <Link href="/admin/audit">Consulter le journal d’audit</Link>
       </p>
       <CreateTournamentForm />

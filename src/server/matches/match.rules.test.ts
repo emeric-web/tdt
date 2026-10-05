@@ -13,6 +13,7 @@ import {
   guardMatchDeclaration,
   guardMatchScoreContest,
   guardMatchScheduling,
+  guardValidatedResultCorrection,
 } from "@/server/matches/match.rules";
 
 describe("guardMatchScheduling", () => {
@@ -32,6 +33,45 @@ describe("guardMatchScheduling", () => {
           "player-2",
         ),
       ).not.toThrow();
+    });
+
+    describe("guardValidatedResultCorrection", () => {
+      it("allows correcting a validated match in an active tournament", () => {
+        expect(() =>
+          guardValidatedResultCorrection(
+            "VALIDATED",
+            "VALIDATED",
+            false,
+            "IN_PROGRESS",
+            "player-1",
+            "player-1",
+            "player-2",
+          ),
+        ).not.toThrow();
+      });
+
+      it.each([
+        ["PENDING", "NONE", false, "IN_PROGRESS"],
+        ["DECLARED", "DECLARED", false, "IN_PROGRESS"],
+        ["VALIDATED", "VALIDATED", true, "IN_PROGRESS"],
+        ["VALIDATED", "VALIDATED", false, "FINISHED"],
+        ["VALIDATED", "CORRECTION_PROPOSED", false, "IN_PROGRESS"],
+      ] as const)(
+        "rejects a non-correctable match state (%s, %s, bye=%s, %s)",
+        (status, scoreStatus, isBye, tournamentStatus) => {
+          expect(() =>
+            guardValidatedResultCorrection(
+              status,
+              scoreStatus,
+              isBye,
+              tournamentStatus,
+              "player-1",
+              "player-1",
+              "player-2",
+            ),
+          ).toThrow(ConflictError);
+        },
+      );
     });
 
     it.each([

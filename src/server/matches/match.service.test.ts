@@ -26,6 +26,8 @@ describe("MatchService", () => {
       listForArbitration: vi.fn(),
       arbitrate: vi.fn(),
       arbitrateScore: vi.fn(),
+      listForCorrection: vi.fn(),
+      correctResult: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -52,6 +54,8 @@ describe("MatchService", () => {
       listForArbitration: vi.fn(),
       arbitrate: vi.fn(),
       arbitrateScore: vi.fn(),
+      listForCorrection: vi.fn(),
+      correctResult: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -79,6 +83,8 @@ describe("MatchService", () => {
       listForArbitration: vi.fn(),
       arbitrate: vi.fn(),
       arbitrateScore: vi.fn(),
+      listForCorrection: vi.fn(),
+      correctResult: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -118,6 +124,8 @@ describe("MatchService", () => {
       listForArbitration: vi.fn(),
       arbitrate: vi.fn(),
       arbitrateScore: vi.fn(),
+      listForCorrection: vi.fn(),
+      correctResult: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -153,6 +161,8 @@ describe("MatchService", () => {
       listForArbitration: vi.fn(),
       arbitrate: vi.fn(),
       arbitrateScore: vi.fn(),
+      listForCorrection: vi.fn(),
+      correctResult: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -188,6 +198,8 @@ describe("MatchService", () => {
       listForArbitration: vi.fn(),
       arbitrate: vi.fn(),
       arbitrateScore: vi.fn(),
+      listForCorrection: vi.fn(),
+      correctResult: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -223,6 +235,8 @@ describe("MatchService", () => {
       listForArbitration: vi.fn(),
       arbitrate: vi.fn(),
       arbitrateScore: vi.fn(),
+      listForCorrection: vi.fn(),
+      correctResult: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -248,6 +262,8 @@ describe("MatchService", () => {
       listForArbitration: vi.fn(),
       arbitrate: vi.fn(),
       arbitrateScore: vi.fn(),
+      listForCorrection: vi.fn(),
+      correctResult: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -288,6 +304,8 @@ describe("MatchService", () => {
       listForArbitration: vi.fn(),
       arbitrate: vi.fn(),
       arbitrateScore: vi.fn(),
+      listForCorrection: vi.fn(),
+      correctResult: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -313,6 +331,8 @@ describe("MatchService", () => {
       listForArbitration: vi.fn(),
       arbitrate: vi.fn(),
       arbitrateScore: vi.fn(),
+      listForCorrection: vi.fn(),
+      correctResult: vi.fn(),
     };
     const service = new MatchService(repository);
 
@@ -337,6 +357,8 @@ describe("MatchService", () => {
       listForArbitration: vi.fn(),
       arbitrate: vi.fn().mockResolvedValue({ id: "match-1" }),
       arbitrateScore: vi.fn().mockResolvedValue({ id: "match-1" }),
+      listForCorrection: vi.fn(),
+      correctResult: vi.fn(),
     };
     const service = new MatchService(repository);
     const score = [
@@ -363,6 +385,41 @@ describe("MatchService", () => {
       "match-1",
       "admin-1",
       { score, resultKind: "NORMAL" },
+    );
+  });
+
+  it("validates and delegates a correction to a validated result", async () => {
+    const repository = {
+      listUpcomingForPlayer: vi.fn(),
+      getDetails: vi.fn(),
+      schedule: vi.fn(),
+      declare: vi.fn(),
+      confirm: vi.fn(),
+      proposeCorrection: vi.fn(),
+      contestScore: vi.fn(),
+      listForArbitration: vi.fn(),
+      arbitrate: vi.fn(),
+      arbitrateScore: vi.fn(),
+      listForCorrection: vi.fn().mockResolvedValue([]),
+      correctResult: vi.fn().mockResolvedValue({ id: "match-1" }),
+    };
+    const service = new MatchService(repository);
+    const correction = {
+      score: [
+        { p1: 6, p2: 4 },
+        { p1: 6, p2: 3 },
+      ],
+      reason: "Feuille de match vérifiée.",
+    };
+
+    await expect(service.listForCorrection()).resolves.toEqual([]);
+    await expect(
+      service.correctResult("match-1", "admin-1", correction),
+    ).resolves.toEqual({ id: "match-1" });
+    expect(repository.correctResult).toHaveBeenCalledWith(
+      "match-1",
+      "admin-1",
+      correction,
     );
   });
 });

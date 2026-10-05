@@ -17,7 +17,7 @@ export const contestScoreSchema = z.strictObject({
   score: scoreSchema,
 });
 
-const administrativeScoreSchema = z
+export const administrativeScoreSchema = z
   .array(
     z.strictObject({
       p1: z.number().int().nonnegative(),
@@ -30,6 +30,7 @@ const administrativeScoreSchema = z
 const resultKindSchema = z.enum(["NORMAL", "ABANDON", "FORFEIT"]);
 const scoreResultKindSchema = z.enum(["NORMAL", "ABANDON"]);
 const reasonSchema = z.string().trim().min(1).max(500);
+const correctableResultKindSchema = z.enum(["NORMAL", "ABANDON", "FORFEIT"]);
 
 export const arbitrateResultSchema = z
   .strictObject({
@@ -65,6 +66,19 @@ export const arbitrateResultSchema = z
     }
   });
 
+export const correctResultSchema = z
+  .strictObject({
+    winnerId: z.string().min(1).optional(),
+    score: administrativeScoreSchema.optional(),
+    resultKind: correctableResultKindSchema.optional(),
+    reason: reasonSchema,
+  })
+  .refine(
+    ({ winnerId, score, resultKind }) =>
+      winnerId !== undefined || score !== undefined || resultKind !== undefined,
+    { message: "Indiquez au moins une modification à apporter." },
+  );
+
 export const arbitrateScoreSchema = z
   .strictObject({
     score: administrativeScoreSchema,
@@ -94,3 +108,4 @@ export type ProposeCorrectionInput = z.infer<typeof proposeCorrectionSchema>;
 export type ContestScoreInput = z.infer<typeof contestScoreSchema>;
 export type ArbitrateResultInput = z.infer<typeof arbitrateResultSchema>;
 export type ArbitrateScoreInput = z.infer<typeof arbitrateScoreSchema>;
+export type CorrectResultInput = z.infer<typeof correctResultSchema>;

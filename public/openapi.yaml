@@ -784,6 +784,41 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /matches/{id}/correct-result:
+    post:
+      tags: [Matches]
+      summary: Corriger un résultat déjà validé
+      description: Réservé à l'administrateur pour un tournoi en cours ; un changement de vainqueur remplace son slot seulement si le match suivant est encore en attente.
+      operationId: correctValidatedMatchResult
+      x-implementation-status: implemented
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CorrectResult"
+      responses:
+        "200":
+          description: Résultat corrigé et décision journalisée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /audit:
     get:
       tags: [Audit]
@@ -1061,6 +1096,22 @@ components:
           type: string
           enum: [NORMAL, ABANDON]
           default: NORMAL
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+    CorrectResult:
+      type: object
+      required: [reason]
+      minProperties: 2
+      properties:
+        winnerId:
+          type: string
+        score:
+          $ref: "#/components/schemas/AdministrativeScore"
+        resultKind:
+          type: string
+          enum: [NORMAL, ABANDON, FORFEIT]
         reason:
           type: string
           minLength: 1

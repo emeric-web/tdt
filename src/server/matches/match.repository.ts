@@ -10,6 +10,7 @@ import type {
   ArbitrateResultInput,
   ArbitrateScoreInput,
   ContestScoreInput,
+  CorrectResultInput,
   DeclareResultInput,
   ProposeCorrectionInput,
   ScheduleMatchInput,
@@ -22,6 +23,7 @@ import {
   guardMatchArbitration,
   guardMatchScoreContest,
   guardMatchScheduling,
+  guardValidatedResultCorrection,
 } from "@/server/matches/match.rules";
 import {
   persistedScoreSchema,
@@ -140,6 +142,19 @@ export type ArbitrationMatch = {
   finalSetSuperTiebreak: boolean;
 };
 
+export type CorrectionMatch = {
+  id: string;
+  tournamentId: string;
+  tournamentName: string;
+  round: number;
+  position: number;
+  winnerId: string;
+  score: SetScore[] | null;
+  resultKind: Match["resultKind"];
+  player1: { id: string; name: string } | null;
+  player2: { id: string; name: string } | null;
+};
+
 export interface MatchRepository {
   listUpcomingForPlayer(playerId: string): Promise<UpcomingMatch[]>;
   getDetails(id: string): Promise<MatchDetails>;
@@ -170,6 +185,12 @@ export interface MatchRepository {
     id: string,
     actorId: string,
     data: ArbitrateScoreInput,
+  ): Promise<DeclaredMatch>;
+  listForCorrection(): Promise<CorrectionMatch[]>;
+  correctResult(
+    id: string,
+    actorId: string,
+    data: CorrectResultInput,
   ): Promise<DeclaredMatch>;
 }
 
@@ -1324,6 +1345,247 @@ export class PrismaMatchRepository implements MatchRepository {
         data.reason,
         "ARBITRATE_SCORE",
       );
+    });
+  }
+
+  /** Lists validated results in active tournaments that can still be corrected. */
+  async listForCorrection(): Promise<CorrectionMatch[]> {
+    const matches = await prisma.match.findMany({
+      where: {
+        status: "VALIDATED",
+        scoreStatus: "VALIDATED",
+        isBye: false,
+        tournament: { status: "IN_PROGRESS" },
+        winnerId: { not: null },
+      },
+      orderBy: [
+        { tournament: { name: "asc" } },
+        { round: "desc" },
+        { position: "asc" },
+      ],
+      select: {
+        id: true,
+        tournamentId: true,
+        round: true,
+        position: true,
+        winnerId: true,
+        score: true,
+        resultKind: true,
+        player1: { select: { id: true, name: true } },
+        player2: { select: { id: true, name: true } },
+        tournament: { select: { name: true } },
+      },
+    });
+
+    return matches.map((match) => {
+      if (match.winnerId === null) {
+        throw new Error(`Validated match ${match.id} has no winner.`);
+      }
+
+      return {
+        id: match.id,
+        tournamentId: match.tournamentId,
+        tournamentName: match.tournament.name,
+        round: match.round,
+        position: match.position,
+        winnerId: match.winnerId,
+        score: parseStoredScore(match.score),
+        resultKind: match.resultKind,
+        player1: match.player1,
+        player2: match.player2,
+      };
+    });
+  }
+
+  /** Corrects a validated result and, if necessary, replaces its downstream slot. */
+  async correctResult(
+    id: string,
+    actorId: string,
+    data: CorrectResultInput,
+  ): Promise<DeclaredMatch> {
+    return prisma.$transaction(async (transaction) => {
+      const match = await transaction.match.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          tournamentId: true,
+          round: true,
+          position: true,
+          status: true,
+          scoreStatus: true,
+          isBye: true,
+          player1Id: true,
+          player2Id: true,
+          winnerId: true,
+          declaredById: true,
+          declaredWinnerId: true,
+          declaredScore: true,
+          proposedWinnerId: true,
+          proposedScore: true,
+          score: true,
+          resultKind: true,
+          version: true,
+          nextMatchId: true,
+          nextSlot: true,
+          tournament: {
+            select: { status: true, finalSetSuperTiebreak: true },
+          },
+        },
+      });
+
+      if (!match) {
+        throw new NotFoundError("Match introuvable.");
+      }
+
+      guardValidatedResultCorrection(
+        match.status,
+        match.scoreStatus,
+        match.isBye,
+        match.tournament.status,
+        match.winnerId,
+        match.player1Id,
+        match.player2Id,
+      );
+
+      const winnerId = data.winnerId ?? match.winnerId;
+      const storedScore = parseStoredScore(match.score);
+      const score = data.score ?? storedScore;
+      if (score === null) {
+        throw new ConflictError(
+          "Le score doit être fourni pour corriger un résultat sans score.",
+        );
+      }
+      const resultKind = data.resultKind ?? match.resultKind ?? "NORMAL";
+
+      if (resultKind === "NORMAL") {
+        const scoreWinner = validateScore(
+          score,
+          match.tournament.finalSetSuperTiebreak,
+        );
+        const scoreWinnerId =
+          scoreWinner === "p1" ? match.player1Id : match.player2Id;
+        if (winnerId !== scoreWinnerId) {
+          throw new BadRequestError(
+            "Le vainqueur corrigé ne correspond pas au score.",
+          );
+        }
+      } else if (resultKind === "ABANDON") {
+        validateAbandonScore(score, match.tournament.finalSetSuperTiebreak);
+      } else if (score.length !== 0) {
+        throw new BadRequestError(
+          "Un forfait ne peut pas comporter de score sportif.",
+        );
+      }
+
+      const winnerChanged = winnerId !== match.winnerId;
+      const scoreChanged =
+        JSON.stringify(score) !== JSON.stringify(storedScore);
+      const kindChanged = resultKind !== (match.resultKind ?? "NORMAL");
+      if (!winnerChanged && !scoreChanged && !kindChanged) {
+        throw new BadRequestError(
+          "La correction ne modifie pas le résultat existant.",
+        );
+      }
+
+      if (winnerChanged && match.nextMatchId !== null) {
+        if (match.nextSlot !== 1 && match.nextSlot !== 2) {
+          throw new ConflictError(
+            "Le match n’est pas relié correctement au tour suivant.",
+          );
+        }
+
+        const nextSlotField = match.nextSlot === 1 ? "player1Id" : "player2Id";
+        const advanced = await transaction.match.updateMany({
+          where: {
+            id: match.nextMatchId,
+            status: "PENDING",
+            [nextSlotField]: match.winnerId,
+          },
+          data: {
+            [nextSlotField]: winnerId,
+            version: { increment: 1 },
+          },
+        });
+
+        if (advanced.count !== 1) {
+          throw new ConflictError(
+            "Le match suivant a déjà commencé ou le vainqueur corrigé n’y figure plus.",
+          );
+        }
+      }
+
+      const before = {
+        winnerId: match.winnerId,
+        score: match.score,
+        resultKind: match.resultKind,
+        status: match.status,
+        scoreStatus: match.scoreStatus,
+      };
+      const updated = await transaction.match.updateMany({
+        where: {
+          id: match.id,
+          status: "VALIDATED",
+          scoreStatus: "VALIDATED",
+          version: match.version,
+          tournament: { status: "IN_PROGRESS" },
+        },
+        data: {
+          winnerId,
+          proposedWinnerId: winnerId,
+          score,
+          proposedScore: score,
+          resultKind,
+          version: { increment: 1 },
+        },
+      });
+
+      if (updated.count !== 1) {
+        throw new ConflictError(
+          "Le résultat a changé. Rechargez la page avant de réessayer.",
+        );
+      }
+
+      await transaction.auditLog.create({
+        data: {
+          tournamentId: match.tournamentId,
+          actorId,
+          action: "CORRECT_RESULT",
+          reason: data.reason,
+          entity: "Match",
+          entityId: match.id,
+          before,
+          after: {
+            winnerId,
+            score,
+            resultKind,
+            status: "VALIDATED",
+            scoreStatus: "VALIDATED",
+          },
+        },
+      });
+
+      return transaction.match.findUniqueOrThrow({
+        where: { id: match.id },
+        select: {
+          id: true,
+          tournamentId: true,
+          round: true,
+          position: true,
+          winnerId: true,
+          declaredById: true,
+          declaredWinnerId: true,
+          declaredScore: true,
+          proposedWinnerId: true,
+          scoreStatus: true,
+          status: true,
+          resultKind: true,
+          score: true,
+          proposedScore: true,
+          isBye: true,
+          scheduledAt: true,
+          court: true,
+        },
+      });
     });
   }
 }

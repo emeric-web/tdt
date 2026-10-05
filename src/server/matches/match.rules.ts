@@ -229,3 +229,36 @@ export function guardMatchArbitration(
     );
   }
 }
+
+export function guardValidatedResultCorrection(
+  status: MatchStatus,
+  scoreStatus: ScoreStatus,
+  isBye: boolean,
+  tournamentStatus: TournamentStatus,
+  winnerId: string | null,
+  player1Id: string | null,
+  player2Id: string | null,
+): void {
+  if (
+    tournamentStatus !== "IN_PROGRESS" ||
+    isBye ||
+    status !== "VALIDATED" ||
+    scoreStatus !== "VALIDATED"
+  ) {
+    throw new ConflictError(
+      "Seul un résultat validé d’un tournoi en cours peut être corrigé.",
+    );
+  }
+
+  if (
+    winnerId === null ||
+    (winnerId !== player1Id && winnerId !== player2Id) ||
+    player1Id === null ||
+    player2Id === null ||
+    player1Id === player2Id
+  ) {
+    throw new ConflictError(
+      "Le vainqueur et les deux joueurs doivent correspondre au match.",
+    );
+  }
+}
