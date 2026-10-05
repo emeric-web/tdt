@@ -31,7 +31,7 @@ export class AuthService {
       parsedCredentials.data.email,
     );
 
-    if (!user || user.anonymized) {
+    if (!user || user.anonymized || !user.passwordHash) {
       return null;
     }
 

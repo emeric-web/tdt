@@ -6,7 +6,7 @@ const credentialUser = {
   id: "user-1",
   name: "Ada Lovelace",
   email: "ada@example.test",
-  passwordHash: "hashed-password",
+  passwordHash: "hashed-password" as string | null,
   role: "MEMBER" as const,
   anonymized: false,
 };
@@ -68,6 +68,24 @@ describe("AuthService", () => {
 
     await expect(service.authenticate(credentials)).resolves.toBeNull();
     await expect(service.authenticate(credentials)).resolves.toBeNull();
+    expect(verifyPassword).not.toHaveBeenCalled();
+  });
+
+  it("rejects accounts without a password hash", async () => {
+    const repository = {
+      findCredentialUserByEmail: vi
+        .fn()
+        .mockResolvedValue({ ...credentialUser, passwordHash: null }),
+    };
+    const verifyPassword = vi.fn();
+    const service = new AuthService(repository, verifyPassword);
+
+    await expect(
+      service.authenticate({
+        email: credentialUser.email,
+        password: "valid-password",
+      }),
+    ).resolves.toBeNull();
     expect(verifyPassword).not.toHaveBeenCalled();
   });
 

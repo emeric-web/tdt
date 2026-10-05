@@ -19,6 +19,7 @@ describe("UserService", () => {
         role: "MEMBER",
       }),
       findMembers: vi.fn(),
+      anonymizeMember: vi.fn(),
     };
     const hashPassword = vi.fn().mockResolvedValue("hashed-password");
     const service = new UserService(repository, hashPassword);
@@ -39,7 +40,11 @@ describe("UserService", () => {
   });
 
   it("does not hash or persist invalid member data", async () => {
-    const repository = { createMember: vi.fn(), findMembers: vi.fn() };
+    const repository = {
+      createMember: vi.fn(),
+      findMembers: vi.fn(),
+      anonymizeMember: vi.fn(),
+    };
     const hashPassword = vi.fn();
     const service = new UserService(repository, hashPassword);
 
@@ -59,6 +64,7 @@ describe("UserService", () => {
           new ConflictError("Cette adresse e-mail est déjà utilisée."),
         ),
       findMembers: vi.fn(),
+      anonymizeMember: vi.fn(),
     };
     const service = new UserService(
       repository,
@@ -78,6 +84,7 @@ describe("UserService", () => {
     const repository = {
       createMember: vi.fn(),
       findMembers: vi.fn().mockResolvedValue(page),
+      anonymizeMember: vi.fn(),
     };
     const service = new UserService(repository, vi.fn());
 
@@ -88,5 +95,17 @@ describe("UserService", () => {
       page: 2,
       pageSize: 10,
     });
+  });
+
+  it("forwards the current member id to the repository for anonymization", async () => {
+    const repository = {
+      createMember: vi.fn(),
+      findMembers: vi.fn(),
+      anonymizeMember: vi.fn().mockResolvedValue(undefined),
+    };
+    const service = new UserService(repository, vi.fn());
+
+    await expect(service.anonymizeMember("member-1")).resolves.toBeUndefined();
+    expect(repository.anonymizeMember).toHaveBeenCalledWith("member-1");
   });
 });

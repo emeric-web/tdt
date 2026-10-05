@@ -30,4 +30,8 @@ export class UserService {
 
     return this.repository.findMembers(query);
   }
+
+  anonymizeMember(userId: string): Promise<void> {
+    return this.repository.anonymizeMember(userId);
+  }
 }

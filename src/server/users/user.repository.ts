@@ -3,7 +3,7 @@ import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import type { User } from "@/generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
-import { ConflictError } from "@/server/errors/app-error";
+import { ConflictError, NotFoundError } from "@/server/errors/app-error";
 
 export type PublicUser = Pick<User, "id" | "name" | "email" | "role">;
 
@@ -19,6 +19,7 @@ export type MemberPage = {
 export interface UserRepository {
   createMember(data: CreateMemberData): Promise<PublicUser>;
   findMembers(input: { page: number; pageSize: number }): Promise<MemberPage>;
+  anonymizeMember(userId: string): Promise<void>;
 }
 
 export class PrismaUserRepository implements UserRepository {
@@ -47,7 +48,7 @@ export class PrismaUserRepository implements UserRepository {
       items,
       page: input.page,
       pageSize: input.pageSize,
-      total
+      total,
     };
   }
 
@@ -74,6 +75,22 @@ export class PrismaUserRepository implements UserRepository {
       }
 
       throw error;
+    }
+  }
+
+  async anonymizeMember(userId: string): Promise<void> {
+    const result = await prisma.user.updateMany({
+      where: { id: userId, role: "MEMBER", anonymized: false },
+      data: {
+        name: "Joueur supprimé",
+        email: `anonymized-${userId}@example.invalid`,
+        passwordHash: null,
+        anonymized: true,
+      },
+    });
+
+    if (result.count === 0) {
+      throw new NotFoundError("Compte membre introuvable.");
     }
   }
 }

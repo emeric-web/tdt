@@ -6,7 +6,7 @@ export type CredentialUser = {
   id: string;
   name: string;
   email: string;
-  passwordHash: string;
+  passwordHash: string | null;
   role: "ADMIN" | "MEMBER";
   anonymized: boolean;
 };
