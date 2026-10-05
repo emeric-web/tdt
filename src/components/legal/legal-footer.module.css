@@ -1,0 +1,16 @@
+.footer {
+  border-top: 1px solid currentColor;
+  padding: 1rem;
+}
+
+.footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.5rem;
+}
+
+.footer a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}

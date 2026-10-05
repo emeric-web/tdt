@@ -3,6 +3,7 @@ import "./globals.css";
 import "swagger-ui-react/swagger-ui.css";
 
 import { AuthSessionProvider } from "@/components/auth/session-provider";
+import { LegalFooter } from "@/components/legal/legal-footer";
 
 export const metadata: Metadata = {
   title: "TdT",
@@ -14,6 +15,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="fr">
       <body>
         <AuthSessionProvider>{children}</AuthSessionProvider>
+        <LegalFooter />
       </body>
     </html>
   );

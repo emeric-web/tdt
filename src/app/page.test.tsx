@@ -43,11 +43,16 @@ describe("Home page", () => {
     });
 
     const page = await Home();
-    const children = page.props.children as React.ReactNode[];
+    const pageContent = page.props.children as ReactElement<{
+      children: ReactNode[];
+    }>;
+    const sections = pageContent.props.children;
+    const intro = sections[0] as ReactElement<{ children: ReactNode[] }>;
+    const introContent = intro.props.children;
 
     expect(redirect).not.toHaveBeenCalled();
     expect(
-      (children[1] as ReactElement<{ children: ReactNode }>).props.children,
+      (introContent[1] as ReactElement<{ children: ReactNode }>).props.children,
     ).toEqual(["Bienvenue, ", "Ada Lovelace", "."]);
   });
 });
