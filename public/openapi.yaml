@@ -720,7 +720,7 @@ paths:
       summary: Arbitrer le résultat d'un match
       description: Réservé à l'administrateur ; peut aussi enregistrer un forfait ou un abandon.
       operationId: arbitrateMatch
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: "#/components/parameters/ResourceId"
       requestBody:
@@ -731,7 +731,7 @@ paths:
               $ref: "#/components/schemas/ArbitrateResult"
       responses:
         "200":
-          description: Résultat arbitré et journalisé
+          description: Résultat arbitré, vainqueur avancé et décision journalisée
           content:
             application/json:
               schema:
@@ -753,9 +753,9 @@ paths:
     post:
       tags: [Matches]
       summary: Arbitrer le score d'un match
-      description: Réservé à l'administrateur ; ne modifie pas le match suivant.
+      description: Réservé à l'administrateur ; valide aussi le vainqueur et l'avance atomiquement.
       operationId: arbitrateMatchScore
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: "#/components/parameters/ResourceId"
       requestBody:
@@ -766,7 +766,7 @@ paths:
               $ref: "#/components/schemas/ArbitrateScore"
       responses:
         "200":
-          description: Score arbitré et décision journalisée
+          description: Score arbitré, vainqueur avancé et décision journalisée
           content:
             application/json:
               schema:
@@ -790,7 +790,7 @@ paths:
       summary: Consulter le journal d'audit
       description: Réservé à l'administrateur.
       operationId: listAuditEntries
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - name: tournamentId
           in: query
@@ -1038,29 +1038,39 @@ components:
           $ref: "#/components/schemas/Score"
     ArbitrateResult:
       type: object
-      required: [winnerId, resultKind, reason]
+      required: [winnerId, score, resultKind]
       properties:
         winnerId:
           type: string
         score:
-          $ref: "#/components/schemas/Score"
+          $ref: "#/components/schemas/AdministrativeScore"
         resultKind:
           type: string
           enum: [NORMAL, ABANDON, FORFEIT]
         reason:
           type: string
           minLength: 1
+          maxLength: 500
     ArbitrateScore:
       type: object
       required: [score]
       properties:
         score:
-          $ref: "#/components/schemas/Score"
+          $ref: "#/components/schemas/AdministrativeScore"
         resultKind:
           type: string
           enum: [NORMAL, ABANDON]
+          default: NORMAL
         reason:
           type: string
+          minLength: 1
+          maxLength: 500
+    AdministrativeScore:
+      type: array
+      maxItems: 3
+      description: Score complet, partiel en cas d'abandon, ou vide pour un forfait.
+      items:
+        $ref: "#/components/schemas/SetScore"
     ScheduleMatch:
       type: object
       required: [scheduledAt, court]
@@ -1124,14 +1134,14 @@ components:
         score:
           type: array
           nullable: true
-          minItems: 2
+          minItems: 0
           maxItems: 3
           items:
             $ref: "#/components/schemas/SetScore"
         proposedScore:
           type: array
           nullable: true
-          minItems: 2
+          minItems: 0
           maxItems: 3
           items:
             $ref: "#/components/schemas/SetScore"
