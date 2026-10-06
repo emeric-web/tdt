@@ -71,8 +71,39 @@ For day-to-day development, start the development server:
 npm run dev
 ```
 
+## End-to-end tests
+
+The browser test runs the real login, result declaration, opponent confirmation,
+and winner advancement flow against an isolated PostgreSQL database.
+
+1. Create a separate database (never point `E2E_DATABASE_URL` at the development
+   or production database):
+
+   ```bash
+   docker compose exec db createdb -U tdt tdt_e2e
+   ```
+
+2. Set `E2E_DATABASE_URL` in `.env` to that database. For example, adjust the
+   host port to match `POSTGRES_PORT`:
+
+   ```text
+   E2E_DATABASE_URL=postgresql://tdt:tdt_dev_password@localhost:5432/tdt_e2e?schema=public
+   ```
+
+3. Install the Playwright browser once and run the test:
+
+   ```bash
+   npx playwright install chromium
+   npm run test:e2e
+   ```
+
+The E2E command applies migrations only to the database configured by
+`E2E_DATABASE_URL`, whose name must end in `_e2e`. Test fixtures use unique IDs
+and are removed after the run.
+
 ## Learn More
 
 - `npm run db:generate` regenerates the Prisma client after schema changes.
 - `npm run db:studio` opens Prisma Studio.
-- `npm run lint`, `npm test` and `npm run build` run the quality checks.
+- `npm run lint`, `npm test`, `npm run test:e2e` and `npm run build` run the
+  quality checks.
