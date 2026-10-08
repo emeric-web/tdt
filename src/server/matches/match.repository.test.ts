@@ -858,7 +858,7 @@ describe("PrismaMatchRepository.listUpcomingForPlayer", () => {
     vi.clearAllMocks();
   });
 
-  it("returns assigned pending matches with only the opponent's public name", async () => {
+  it("returns assigned non-validated matches with only the opponent's public name", async () => {
     findMany.mockResolvedValue([
       {
         id: "match-1",
@@ -894,8 +894,9 @@ describe("PrismaMatchRepository.listUpcomingForPlayer", () => {
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          status: "PENDING",
+          status: { not: "VALIDATED" },
           isBye: false,
+          tournament: { status: "IN_PROGRESS" },
           player1Id: { not: null },
           player2Id: { not: null },
           OR: [{ player1Id: "player-1" }, { player2Id: "player-1" }],

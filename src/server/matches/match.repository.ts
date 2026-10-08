@@ -461,7 +461,7 @@ export class PrismaMatchRepository implements MatchRepository {
   async listUpcomingForPlayer(playerId: string): Promise<UpcomingMatch[]> {
     const matches = await prisma.match.findMany({
       where: {
-        status: "PENDING",
+        status: { not: "VALIDATED" },
         isBye: false,
         tournament: { status: "IN_PROGRESS" },
         player1Id: { not: null },
