@@ -3,6 +3,15 @@ export type BracketPlayer = {
   name: string;
 };
 
+export type ScoreFormProps = {
+  matchId: string;
+  player1: BracketPlayer;
+  player2: BracketPlayer;
+  finalSetSuperTiebreak: boolean;
+  mode?: "declare" | "propose-correction" | "contest-score";
+  declaredWinnerId?: string;
+}
+
 export type MatchStatus =
   "PENDING" | "DECLARED" | "CORRECTION_PROPOSED" | "DISPUTED" | "VALIDATED";
 

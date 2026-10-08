@@ -10,9 +10,9 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh }),
 }));
 
-import { ResultConfirmation } from "./ResultConfirmation";
+import { MatchScoreConfirmationBtn } from "./match-score-confirmation-btn";
 
-describe("ResultConfirmation", () => {
+describe("MatchConfirmationBtn", () => {
   afterEach(cleanup);
 
   beforeEach(() => {
@@ -31,7 +31,7 @@ describe("ResultConfirmation", () => {
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    render(<ResultConfirmation matchId="match-1" />);
+    render(<MatchScoreConfirmationBtn matchId="match-1" />);
     await user.click(
       screen.getByRole("button", { name: "Confirmer le résultat" }),
     );
@@ -56,7 +56,7 @@ describe("ResultConfirmation", () => {
     );
     const user = userEvent.setup();
 
-    render(<ResultConfirmation matchId="match-1" />);
+    render(<MatchScoreConfirmationBtn matchId="match-1" />);
     await user.click(
       screen.getByRole("button", { name: "Confirmer le résultat" }),
     );

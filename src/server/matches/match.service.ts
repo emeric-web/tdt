@@ -1,6 +1,7 @@
 import type {
   MatchRepository,
   MatchDetails,
+  AdminMatchDetails,
   ArbitrationMatch,
   CorrectionMatch,
   ScheduledMatch,
@@ -33,6 +34,11 @@ export class MatchService {
   /** Returns one match and its public tournament settings. */
   getDetails(id: string): Promise<MatchDetails> {
     return this.repository.getDetails(id);
+  }
+
+  /** Returns one match with the declared score for an administrator. */
+  getDetailsForAdmin(id: string): Promise<AdminMatchDetails> {
+    return this.repository.getDetailsForAdmin(id);
   }
 
   /** Validates and saves the schedule of a match. */

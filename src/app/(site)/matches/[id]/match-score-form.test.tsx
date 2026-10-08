@@ -10,7 +10,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh }),
 }));
 
-import { ScoreForm } from "./ScoreForm";
+import { MatchScoreForm } from "./match-score-form";
 
 describe("ScoreForm", () => {
   afterEach(cleanup);
@@ -32,7 +32,7 @@ describe("ScoreForm", () => {
     const user = userEvent.setup();
 
     render(
-      <ScoreForm
+      <MatchScoreForm
         matchId="match-1"
         player1={{ id: "player-1", name: "Ada Lovelace" }}
         player2={{ id: "player-2", name: "Alan Turing" }}
@@ -73,7 +73,7 @@ describe("ScoreForm", () => {
     const user = userEvent.setup();
 
     render(
-      <ScoreForm
+      <MatchScoreForm
         matchId="match-1"
         player1={{ id: "player-1", name: "Ada Lovelace" }}
         player2={{ id: "player-2", name: "Alan Turing" }}
@@ -111,7 +111,7 @@ describe("ScoreForm", () => {
     const user = userEvent.setup();
 
     render(
-      <ScoreForm
+      <MatchScoreForm
         matchId="match-1"
         player1={{ id: "player-1", name: "Ada Lovelace" }}
         player2={{ id: "player-2", name: "Alan Turing" }}
@@ -162,7 +162,7 @@ describe("ScoreForm", () => {
     const user = userEvent.setup();
 
     render(
-      <ScoreForm
+      <MatchScoreForm
         matchId="match-1"
         player1={{ id: "player-1", name: "Ada Lovelace" }}
         player2={{ id: "player-2", name: "Alan Turing" }}

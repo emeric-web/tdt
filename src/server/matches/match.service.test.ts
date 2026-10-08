@@ -18,6 +18,7 @@ describe("MatchService", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn().mockResolvedValue(upcomingMatches),
       getDetails: vi.fn(),
+      getDetailsForAdmin: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -46,6 +47,7 @@ describe("MatchService", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
       getDetails: vi.fn(),
+      getDetailsForAdmin: vi.fn(),
       schedule: vi.fn().mockResolvedValue(scheduledMatch),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -75,6 +77,7 @@ describe("MatchService", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
       getDetails: vi.fn(),
+      getDetailsForAdmin: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -116,6 +119,7 @@ describe("MatchService", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
       getDetails: vi.fn(),
+      getDetailsForAdmin: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn().mockResolvedValue(declaredMatch),
       confirm: vi.fn(),
@@ -153,6 +157,7 @@ describe("MatchService", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
       getDetails: vi.fn(),
+      getDetailsForAdmin: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -190,6 +195,7 @@ describe("MatchService", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
       getDetails: vi.fn(),
+      getDetailsForAdmin: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn().mockResolvedValue(confirmedMatch),
@@ -227,6 +233,7 @@ describe("MatchService", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
       getDetails: vi.fn(),
+      getDetailsForAdmin: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -254,6 +261,7 @@ describe("MatchService", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
       getDetails: vi.fn(),
+      getDetailsForAdmin: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -296,6 +304,7 @@ describe("MatchService", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
       getDetails: vi.fn(),
+      getDetailsForAdmin: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -323,6 +332,7 @@ describe("MatchService", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
       getDetails: vi.fn(),
+      getDetailsForAdmin: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -349,6 +359,7 @@ describe("MatchService", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
       getDetails: vi.fn(),
+      getDetailsForAdmin: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -392,6 +403,7 @@ describe("MatchService", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
       getDetails: vi.fn(),
+      getDetailsForAdmin: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),

@@ -3,16 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-import type { BracketPlayer } from "@/types/bracket";
-
-type ScoreFormProps = {
-  matchId: string;
-  player1: BracketPlayer;
-  player2: BracketPlayer;
-  finalSetSuperTiebreak: boolean;
-  mode?: "declare" | "propose-correction" | "contest-score";
-  declaredWinnerId?: string;
-};
+import type { ScoreFormProps } from "@/types/bracket";
 
 function isErrorResponse(value: unknown): value is {
   error: { message: string };
@@ -28,7 +19,7 @@ function isErrorResponse(value: unknown): value is {
   );
 }
 
-export function ScoreForm({
+export function MatchScoreForm({
   matchId,
   player1,
   player2,

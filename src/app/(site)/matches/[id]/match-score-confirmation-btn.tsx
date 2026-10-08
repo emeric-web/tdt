@@ -17,7 +17,7 @@ function isErrorResponse(value: unknown): value is {
   );
 }
 
-export function ResultConfirmation({ matchId }: { matchId: string }) {
+export function MatchScoreConfirmationBtn({ matchId }: { matchId: string }) {
   const router = useRouter();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

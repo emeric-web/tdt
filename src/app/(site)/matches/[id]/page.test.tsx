@@ -5,8 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NotFoundError } from "@/server/errors/app-error";
 
-const { getDetails } = vi.hoisted(() => ({
+const { getDetails, getDetailsForAdmin } = vi.hoisted(() => ({
   getDetails: vi.fn(),
+  getDetailsForAdmin: vi.fn(),
 }));
 
 vi.mock("next-auth", () => ({
@@ -34,6 +35,7 @@ vi.mock("@/server/matches/match.repository", () => ({
 vi.mock("@/server/matches/match.service", () => ({
   MatchService: class {
     getDetails = getDetails;
+    getDetailsForAdmin = getDetailsForAdmin;
   },
 }));
 
@@ -65,6 +67,13 @@ const details = {
   },
 };
 
+function pageProps(id: string, mode?: string) {
+  return {
+    params: Promise.resolve({ id }),
+    searchParams: Promise.resolve(mode ? { mode } : {}),
+  };
+}
+
 describe("MatchPage", () => {
   afterEach(cleanup);
 
@@ -83,15 +92,12 @@ describe("MatchPage", () => {
   });
 
   it("shows a dedicated match page with the result form for its player", async () => {
-    const page = await MatchPage({
-      params: Promise.resolve({ id: "match-1" }),
-    });
+    const page = await MatchPage(pageProps("match-1"));
 
     render(page);
 
-    expect(screen.getByRole("heading", { name: "Votre match" })).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "Quarts de finale" }),
+      screen.getByRole("heading", { level: 1, name: "Quarts de finale" }),
     ).toBeVisible();
     expect(screen.getByLabelText("Ada Lovelace, set 1")).toBeVisible();
     expect(screen.getByLabelText("Grace Hopper, set 1")).toBeVisible();
@@ -99,8 +105,8 @@ describe("MatchPage", () => {
       screen.getByRole("button", { name: "Déclarer le résultat" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("link", { name: "Retour au tableau de Club Open" }),
-    ).toHaveAttribute("href", "/tournaments/tournament-1");
+      screen.getByRole("link", { name: "Club Open" }),
+    ).toHaveAttribute("href", "/tournoi/tournament-1");
     expect(getDetails).toHaveBeenCalledWith("match-1");
   });
 
@@ -115,9 +121,7 @@ describe("MatchPage", () => {
       },
     });
 
-    const page = await MatchPage({
-      params: Promise.resolve({ id: "match-1" }),
-    });
+    const page = await MatchPage(pageProps("match-1"));
 
     render(page);
 
@@ -152,9 +156,7 @@ describe("MatchPage", () => {
       },
     });
 
-    const page = await MatchPage({
-      params: Promise.resolve({ id: "match-1" }),
-    });
+    const page = await MatchPage(pageProps("match-1"));
 
     render(page);
 
@@ -192,9 +194,7 @@ describe("MatchPage", () => {
       },
     });
 
-    const page = await MatchPage({
-      params: Promise.resolve({ id: "match-1" }),
-    });
+    const page = await MatchPage(pageProps("match-1"));
 
     render(page);
 
@@ -212,111 +212,6 @@ describe("MatchPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("offers a score-only contest while retaining the declared winner", async () => {
-    getDetails.mockResolvedValue({
-      ...details,
-      match: {
-        ...details.match,
-        status: "DECLARED",
-        scoreStatus: "DECLARED",
-        declaredById: "player-1",
-        declaredWinnerId: "player-2",
-        proposedWinnerId: "player-2",
-        proposedScore: [
-          { p1: 4, p2: 6 },
-          { p1: 6, p2: 3 },
-          { p1: 4, p2: 6 },
-        ],
-      },
-    });
-    vi.mocked(getServerSession).mockResolvedValue({
-      expires: "2099-01-01T00:00:00.000Z",
-      user: {
-        id: "player-2",
-        name: "Grace Hopper",
-        email: "grace@example.test",
-        role: "MEMBER",
-      },
-    });
-
-    const page = await MatchPage({
-      params: Promise.resolve({ id: "match-1" }),
-    });
-
-    render(page);
-
-    expect(
-      screen.getByRole("group", { name: "Contester le score" }),
-    ).toBeVisible();
-    expect(screen.getByText(/Vainqueur conservé : Grace Hopper/)).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Contester le score" }),
-    ).toBeVisible();
-  });
-
-  it("shows the proposed winner while correction remains unresolved", async () => {
-    getDetails.mockResolvedValue({
-      ...details,
-      match: {
-        ...details.match,
-        status: "CORRECTION_PROPOSED",
-        scoreStatus: "CORRECTION_PROPOSED",
-        declaredById: "player-1",
-        declaredWinnerId: "player-1",
-        proposedWinnerId: "player-2",
-        proposedScore: [
-          { p1: 4, p2: 6 },
-          { p1: 3, p2: 6 },
-        ],
-      },
-    });
-
-    const page = await MatchPage({
-      params: Promise.resolve({ id: "match-1" }),
-    });
-
-    render(page);
-
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Vainqueur proposé : Grace Hopper.",
-    );
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "aucun joueur n’avance.",
-    );
-  });
-
-  it("shows a score contest without changing the winner", async () => {
-    getDetails.mockResolvedValue({
-      ...details,
-      match: {
-        ...details.match,
-        status: "CORRECTION_PROPOSED",
-        scoreStatus: "CORRECTION_PROPOSED",
-        declaredById: "player-1",
-        declaredWinnerId: "player-2",
-        proposedWinnerId: "player-2",
-        proposedScore: [
-          { p1: 4, p2: 6 },
-          { p1: 6, p2: 3 },
-          { p1: 4, p2: 6 },
-        ],
-      },
-    });
-
-    const page = await MatchPage({
-      params: Promise.resolve({ id: "match-1" }),
-    });
-
-    render(page);
-
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Score contesté, vainqueur conservé : Grace Hopper.",
-    );
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Aucun joueur n’avance avant la résolution.",
-    );
-  });
-
   it("does not offer a correction proposal to the original declarant", async () => {
     getDetails.mockResolvedValue({
       ...details,
@@ -329,9 +224,7 @@ describe("MatchPage", () => {
       },
     });
 
-    const page = await MatchPage({
-      params: Promise.resolve({ id: "match-1" }),
-    });
+    const page = await MatchPage(pageProps("match-1"));
 
     render(page);
 
@@ -351,9 +244,7 @@ describe("MatchPage", () => {
       },
     });
 
-    const page = await MatchPage({
-      params: Promise.resolve({ id: "match-1" }),
-    });
+    const page = await MatchPage(pageProps("match-1"));
 
     render(page);
 
@@ -362,40 +253,79 @@ describe("MatchPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("indicates that the tournament is finished", async () => {
+  it("does not offer result actions when the tournament is finished", async () => {
     getDetails.mockResolvedValue({
       ...details,
       tournamentStatus: "FINISHED",
-      match: { ...details.match, status: "VALIDATED" },
     });
 
-    const page = await MatchPage({
-      params: Promise.resolve({ id: "match-1" }),
-    });
+    const page = await MatchPage(pageProps("match-1"));
 
     render(page);
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Le tournoi est terminé.",
+    expect(
+      screen.queryByRole("button", { name: "Déclarer le résultat" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Confirmer le résultat" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the arbitration form to an admin in admin mode", async () => {
+    vi.mocked(getServerSession).mockResolvedValue({
+      expires: "2099-01-01T00:00:00.000Z",
+      user: {
+        id: "admin-1",
+        name: "Admin",
+        email: "admin@example.test",
+        role: "ADMIN",
+      },
+    });
+    getDetailsForAdmin.mockResolvedValue({
+      ...details,
+      match: {
+        ...details.match,
+        status: "DISPUTED",
+        declaredWinnerId: "player-1",
+        declaredScore: [
+          { p1: 6, p2: 4 },
+          { p1: 6, p2: 3 },
+        ],
+      },
+    });
+
+    render(await MatchPage(pageProps("match-1", "admin")));
+
+    expect(
+      screen.getByRole("button", { name: "Valider l’arbitrage" }),
+    ).toBeVisible();
+    expect(getDetailsForAdmin).toHaveBeenCalledWith("match-1");
+    expect(getDetails).not.toHaveBeenCalled();
+  });
+
+  it("redirects a member who requests admin mode", async () => {
+    await expect(MatchPage(pageProps("match-1", "admin"))).rejects.toThrow(
+      "Redirected to /matches/match-1",
     );
+
+    expect(redirect).toHaveBeenCalledWith("/matches/match-1");
+    expect(getDetailsForAdmin).not.toHaveBeenCalled();
   });
 
   it("redirects anonymous visitors to the login page", async () => {
     vi.mocked(getServerSession).mockResolvedValue(null);
 
-    await expect(
-      MatchPage({ params: Promise.resolve({ id: "match-1" }) }),
-    ).rejects.toThrow("Redirected to /login");
-    expect(redirect).toHaveBeenCalledWith("/login");
+    await expect(MatchPage(pageProps("match-1"))).rejects.toThrow(
+      "Redirected to /connexion",
+    );
+    expect(redirect).toHaveBeenCalledWith("/connexion");
     expect(getDetails).not.toHaveBeenCalled();
   });
 
   it("renders not found for an unknown match", async () => {
     getDetails.mockRejectedValue(new NotFoundError("Match introuvable."));
 
-    await expect(
-      MatchPage({ params: Promise.resolve({ id: "missing" }) }),
-    ).rejects.toThrow("Not found");
+    await expect(MatchPage(pageProps("missing"))).rejects.toThrow("Not found");
     expect(notFound).toHaveBeenCalled();
   });
 });
