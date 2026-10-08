@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-
+import "swagger-ui-react/swagger-ui.css";
 import { SwaggerDocs } from "./swagger-ui";
 
 export const metadata: Metadata = {
@@ -10,11 +10,6 @@ export const metadata: Metadata = {
 export default function ApiDocsPage() {
   return (
     <main>
-      <h1>Documentation de l&apos;API TdT</h1>
-      <p>
-        Les opérations indiquées comme planifiées décrivent le contrat cible et
-        ne sont pas encore disponibles.
-      </p>
       <SwaggerDocs />
     </main>
   );

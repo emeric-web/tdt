@@ -27,11 +27,11 @@ describe("Home page", () => {
   it("redirects anonymous visitors to the login page", async () => {
     vi.mocked(getServerSession).mockResolvedValue(null);
 
-    await expect(Home()).rejects.toThrow("Redirected to /login");
-    expect(redirect).toHaveBeenCalledWith("/login");
+    await expect(Home()).rejects.toThrow("Redirected to /connexion");
+    expect(redirect).toHaveBeenCalledWith("/connexion");
   });
 
-  it("renders the welcome page for an authenticated user", async () => {
+  it("renders the personalized dashboard for an authenticated user", async () => {
     vi.mocked(getServerSession).mockResolvedValue({
       expires: "2099-01-01T00:00:00.000Z",
       user: {
@@ -43,16 +43,15 @@ describe("Home page", () => {
     });
 
     const page = await Home();
-    const pageContent = page.props.children as ReactElement<{
-      children: ReactNode[];
-    }>;
-    const sections = pageContent.props.children;
+    const sections = page.props.children as ReactNode[];
     const intro = sections[0] as ReactElement<{ children: ReactNode[] }>;
-    const introContent = intro.props.children;
-
     expect(redirect).not.toHaveBeenCalled();
     expect(
-      (introContent[1] as ReactElement<{ children: ReactNode }>).props.children,
-    ).toEqual(["Bienvenue, ", "Ada Lovelace", "."]);
+      (
+        (intro.props.children as ReactNode[])[1] as ReactElement<{
+          children: ReactNode;
+        }>
+      ).props.children,
+    ).toEqual(["Bonjour, ", "Ada Lovelace", " 👋"]);
   });
 });

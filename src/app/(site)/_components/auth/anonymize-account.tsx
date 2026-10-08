@@ -50,7 +50,7 @@ export function AnonymizeAccountButton() {
         return;
       }
 
-      await signOut({ callbackUrl: "/login" });
+      await signOut({ callbackUrl: "/connexion" });
     } catch (error) {
       console.error("Unable to anonymize member account.", error);
       setErrorMessage("Impossible de contacter le serveur. Réessayez.");

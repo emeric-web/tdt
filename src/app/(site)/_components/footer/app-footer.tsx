@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-import styles from "./legal-footer.module.css";
+import styles from "./app-footer.module.css";
 
-export function LegalFooter() {
+export function AppFooter() {
   return (
     <footer className={styles.footer}>
       <nav aria-label="Informations légales">

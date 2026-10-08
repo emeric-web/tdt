@@ -1,0 +1,26 @@
+.intro {
+  padding: 0.5rem 0 1.5rem;
+}
+
+.intro h1 {
+  margin-bottom: 0.4rem;
+}
+
+.intro > p:last-child {
+  color: var(--tdt-text-secondary);
+}
+
+.eyebrow {
+  margin-bottom: 0.55rem;
+  color: var(--tdt-accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 600px) {
+  .intro {
+    padding-top: 0;
+  }
+}

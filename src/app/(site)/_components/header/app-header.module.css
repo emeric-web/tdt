@@ -1,0 +1,180 @@
+.header {
+  position: relative;
+  z-index: 10;
+  color: var(--tdt-text-header);
+  background: var(--tdt-bg-header);
+}
+
+.admin {
+  --tdt-bg-header: #2a416f;
+  --tdt-bg-action: light-dark(#d6dcff, #aebdff);
+  --tdt-text-action: #24355d;
+  --tdt-bg-accent: light-dark(#e5eafd, #303d5a);
+  --tdt-accent: light-dark(#405eaa, #aebdff);
+}
+
+.inner {
+  width: min(100% - 2rem, 62rem);
+  min-height: 4.25rem;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.brandMark {
+  display: grid;
+  width: 2rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid var(--tdt-border-header);
+  border-radius: 0.65rem;
+  background: var(--tdt-bg-avatar);
+  font-size: 0.76rem;
+  letter-spacing: -0.05em;
+}
+
+.account {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sessionStatus {
+  color: #d6e1dc;
+  font-size: 0.75rem;
+}
+
+.adminBadge {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--tdt-border-header);
+  border-radius: 99px;
+  font-size: 0.65rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+}
+
+.avatar {
+  display: grid;
+  width: 2.2rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid var(--tdt-border-header);
+  border-radius: 50%;
+  color: inherit;
+  background: var(--tdt-bg-avatar);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.avatar:hover,
+.avatar[aria-expanded="true"] {
+  background: var(--tdt-bg-avatar-active);
+}
+
+.loginLink {
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.7rem;
+  color: var(--tdt-text-action);
+  background: var(--tdt-bg-action);
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 0.7rem);
+  right: 0;
+  display: grid;
+  width: min(17rem, calc(100vw - 2rem));
+  padding: 0.4rem;
+  border: 1px solid var(--tdt-border);
+  border-radius: 0.9rem;
+  color: var(--tdt-text-primary);
+  background: var(--tdt-bg-surface);
+  box-shadow: 0 12px 30px var(--tdt-shadow-color);
+}
+
+.menu a,
+.logout {
+  display: block;
+  width: 100%;
+  padding: 0.7rem 0.75rem;
+  border: 0;
+  border-radius: 0.55rem;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.menu a:hover,
+.logout:hover {
+  background: var(--tdt-bg-accent);
+  text-decoration: none;
+}
+
+.accountName {
+  overflow: hidden;
+  padding: 0.55rem 0.75rem 0.7rem;
+  border-bottom: 1px solid var(--tdt-border);
+  color: var(--tdt-text-secondary);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout {
+  margin-top: 0.25rem;
+  border-top: 1px solid var(--tdt-border);
+  color: var(--tdt-accent);
+}
+
+.menu > div {
+  padding: 0.4rem 0.65rem;
+  border-top: 1px solid var(--tdt-border);
+}
+
+.menu > div button {
+  padding: 0.3rem 0;
+  border: 0;
+  color: var(--tdt-text-secondary);
+  background: transparent;
+  text-align: left;
+  font-size: 0.72rem;
+}
+
+.menu > div [role="alert"] {
+  margin-top: 0.4rem;
+  color: #a9362a;
+  font-size: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .inner {
+    width: calc(100% - 1.5rem);
+    min-height: 3.8rem;
+  }
+
+  .brand {
+    gap: 0.45rem;
+    font-size: 0.61rem;
+  }
+
+  .adminBadge {
+    display: none;
+  }
+}

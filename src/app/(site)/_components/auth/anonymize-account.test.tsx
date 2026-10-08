@@ -34,7 +34,7 @@ describe("AnonymizeAccountButton", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/users/me", {
       method: "DELETE",
     });
-    expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/login" });
+    expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/connexion" });
   });
 
   it("does not call the API if the member cancels", async () => {
