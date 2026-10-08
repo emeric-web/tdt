@@ -1,0 +1,38 @@
+.page {
+  display: grid;
+  align-items: center;
+}
+
+.card {
+  width: min(100%, 30rem);
+  margin: 1rem auto;
+  padding: clamp(1.25rem, 5vw, 2.25rem);
+  border: 1px solid var(--tdt-border);
+  border-radius: 1.25rem;
+  background: var(--tdt-bg-surface);
+  box-shadow: 0 16px 44px var(--tdt-shadow-color);
+}
+
+.card h1 {
+  margin-bottom: 0.5rem;
+}
+
+.card > p:not(.eyebrow) {
+  color: var(--tdt-text-secondary);
+}
+
+.eyebrow {
+  margin-bottom: 0.5rem;
+  color: var(--tdt-accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.card form {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}

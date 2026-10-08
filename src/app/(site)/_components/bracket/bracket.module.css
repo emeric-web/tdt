@@ -1,0 +1,183 @@
+.root {
+  --card-bg: var(--tdt-bg-surface);
+  --card-border: var(--tdt-border);
+  --card-header-bg: var(--tdt-bg-accent);
+  --pill-active-bg: var(--tdt-bg-header);
+  --pill-active-fg: var(--tdt-text-header);
+  --text-primary: var(--tdt-text-primary);
+  --text-muted: var(--tdt-text-secondary);
+}
+
+.bracket {
+  display: flex;
+  gap: 2rem;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+}
+
+.round {
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+}
+
+.round h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.matches {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.slot {
+  box-sizing: border-box;
+  flex: 1 0 8rem;
+  min-height: 8rem;
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding-block: 0.5rem;
+}
+
+.slot::before,
+.slot::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 1rem;
+  border-top: 2px solid var(--card-border);
+  pointer-events: none;
+}
+
+.round:not(:first-child) .slot::before {
+  right: 100%;
+}
+
+.round:not(:last-child) .slot::after {
+  left: 100%;
+}
+
+.connector {
+  position: absolute;
+  right: -1rem;
+  width: 0;
+  border-left: 2px solid var(--card-border);
+  pointer-events: none;
+}
+
+.round:not(:last-child) .slot:nth-child(odd) .connector {
+  top: 50%;
+  bottom: -50%;
+}
+
+.round:not(:last-child) .slot:nth-child(even) .connector {
+  top: -50%;
+  bottom: 50%;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background-color: var(--card-bg);
+  overflow: hidden;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-primary);
+}
+
+.line + .line {
+  border-top: 1px solid var(--card-border);
+}
+
+.empty {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.empty + .empty {
+  border-top: 1px solid var(--card-border);
+}
+
+.winner .name {
+  font-weight: 700;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sets {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.set {
+  min-width: 1.25rem;
+  text-align: center;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.pending {
+  margin: 0;
+  padding: 0.35rem 0.75rem;
+  background-color: var(--card-header-bg);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--card-header-bg);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.badge[data-status="VALIDATED"] {
+  background-color: var(--pill-active-bg);
+  border-color: var(--pill-active-bg);
+  color: var(--pill-active-fg);
+}
