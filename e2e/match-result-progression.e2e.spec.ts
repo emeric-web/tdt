@@ -144,13 +144,13 @@ async function signIn(
   page: import("@playwright/test").Page,
   user: (typeof users)[number],
 ) {
-  await page.goto("/login");
+  await page.goto("/connexion");
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Adresse e-mail").fill(`${user.id}@example.test`);
   await page.getByLabel("Mot de passe").fill(password);
   await page.getByRole("button", { name: "Se connecter" }).click();
   await expect(
-    page.getByRole("heading", { name: "Tournois TdT" }),
+    page.getByRole("heading", { name: `Bonjour, ${user.name} 👋` }),
   ).toBeVisible();
 }
 
@@ -168,7 +168,7 @@ test("a declared result is confirmed by the opponent and advances its winner", a
   await page.getByRole("button", { name: "Déclarer le résultat" }).click();
 
   await expect(
-    page.getByText("Résultat à confirmer par l’adversaire"),
+    page.getByText("En attente de confirmation", { exact: true }),
   ).toBeVisible();
   const bracketBeforeConfirmation = await page.request.get(
     `/api/tournaments/${tournamentId}/bracket`,
@@ -181,14 +181,15 @@ test("a declared result is confirmed by the opponent and advances its winner", a
   expect(bracketBefore.rounds[1].matches[0].player2).toBeNull();
 
   await page.goto("/");
+  await page.getByRole("link", { name: "TdT, profil" }).click();
   await page.getByRole("button", { name: "Se déconnecter" }).click();
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page).toHaveURL(/\/connexion$/);
 
   await signIn(page, users[1]);
   await page.goto(`/matches/${firstRoundMatchId}`);
   await page.getByRole("button", { name: "Confirmer le résultat" }).click();
 
-  await expect(page.getByText("Validé", { exact: true })).toBeVisible();
+  await expect(page.getByText("Terminé", { exact: true })).toBeVisible();
   const bracketAfterConfirmation = await page.request.get(
     `/api/tournaments/${tournamentId}/bracket`,
   );

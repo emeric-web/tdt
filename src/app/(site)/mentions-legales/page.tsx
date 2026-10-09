@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import styles from "@/app/legal-pages.module.css";
+import styles from "@/app/(site)/_styles/legal-pages.module.css";
 
 export const metadata: Metadata = {
   title: "Mentions légales | TdT",
