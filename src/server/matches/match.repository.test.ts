@@ -501,6 +501,7 @@ describe("PrismaMatchRepository.getDetails", () => {
       winnerId: null,
       declaredById: null,
       declaredWinnerId: null,
+      declaredScore: null,
       proposedWinnerId: null,
       score: null,
       proposedScore: null,
@@ -516,31 +517,127 @@ describe("PrismaMatchRepository.getDetails", () => {
     });
 
     await expect(
-      new PrismaMatchRepository().getDetails("match-1"),
+      new PrismaMatchRepository().getMatchPageData("match-1"),
     ).resolves.toEqual({
-      tournamentId: "tournament-1",
-      tournamentName: "Club Open",
+      id: "match-1",
+      tournament: {
+        id: "tournament-1",
+        name: "Club Open",
+        status: "IN_PROGRESS",
+        finalSetSuperTiebreak: true,
+      },
+      players: [
+        { id: "player-1", name: "Ada Lovelace" },
+        { id: "player-2", name: "Grace Hopper" },
+      ],
       roundLabel: "Demi-finales",
-      tournamentStatus: "IN_PROGRESS",
-      finalSetSuperTiebreak: true,
-      match: {
-        id: "match-1",
-        round: 2,
-        position: 0,
-        player1: { id: "player-1", name: "Ada Lovelace" },
-        player2: { id: "player-2", name: "Grace Hopper" },
-        status: "PENDING",
-        scoreStatus: "NONE",
-        resultKind: null,
-        winnerId: null,
-        declaredById: null,
-        declaredWinnerId: null,
-        proposedWinnerId: null,
-        score: null,
-        proposedScore: null,
-        isBye: false,
+      details: {
         scheduledAt: "2026-10-03T16:30:00.000Z",
         court: "Court 2",
+        round: 2,
+        position: 0,
+      },
+      result: {
+        status: "PENDING",
+        kind: null,
+        declared: null,
+        proposed: null,
+        winnerId: null,
+        score: null,
+      },
+    });
+  });
+
+  it("groups declared and proposed results with their scores", async () => {
+    const declaredScore = [
+      { p1: 6, p2: 4 },
+      { p1: 6, p2: 3 },
+    ];
+    const proposedScore = [
+      { p1: 4, p2: 6 },
+      { p1: 3, p2: 6 },
+    ];
+    findUnique.mockResolvedValue({
+      id: "match-1",
+      tournamentId: "tournament-1",
+      round: 1,
+      position: 0,
+      player1: { id: "player-1", name: "Ada Lovelace" },
+      player2: { id: "player-2", name: "Grace Hopper" },
+      status: "CORRECTION_PROPOSED",
+      resultKind: null,
+      winnerId: null,
+      declaredById: "player-1",
+      declaredWinnerId: "player-1",
+      declaredScore,
+      proposedWinnerId: "player-2",
+      proposedScore,
+      score: null,
+      scheduledAt: null,
+      court: null,
+      tournament: {
+        name: "Club Open",
+        status: "IN_PROGRESS",
+        finalSetSuperTiebreak: false,
+        matches: [{ round: 1 }],
+      },
+    });
+
+    await expect(
+      new PrismaMatchRepository().getMatchPageData("match-1"),
+    ).resolves.toMatchObject({
+      result: {
+        status: "CORRECTION_PROPOSED",
+        declared: {
+          byId: "player-1",
+          winnerId: "player-1",
+          score: declaredScore,
+        },
+        proposed: { winnerId: "player-2", score: proposedScore },
+        winnerId: null,
+        score: null,
+      },
+    });
+  });
+
+  it("returns a validated bye without a declaration", async () => {
+    findUnique.mockResolvedValue({
+      id: "match-1",
+      tournamentId: "tournament-1",
+      round: 1,
+      position: 0,
+      player1: { id: "player-1", name: "Ada Lovelace" },
+      player2: null,
+      status: "VALIDATED",
+      resultKind: "BYE",
+      winnerId: "player-1",
+      declaredById: null,
+      declaredWinnerId: null,
+      declaredScore: null,
+      proposedWinnerId: null,
+      proposedScore: null,
+      score: null,
+      scheduledAt: null,
+      court: null,
+      tournament: {
+        name: "Club Open",
+        status: "IN_PROGRESS",
+        finalSetSuperTiebreak: false,
+        matches: [{ round: 1 }],
+      },
+    });
+
+    await expect(
+      new PrismaMatchRepository().getMatchPageData("match-1"),
+    ).resolves.toMatchObject({
+      players: [{ id: "player-1", name: "Ada Lovelace" }, null],
+      result: {
+        status: "VALIDATED",
+        kind: "BYE",
+        declared: null,
+        proposed: null,
+        winnerId: "player-1",
+        score: null,
       },
     });
   });

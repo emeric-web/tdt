@@ -17,8 +17,7 @@ describe("MatchService", () => {
     ];
     const repository = {
       listUpcomingForPlayer: vi.fn().mockResolvedValue(upcomingMatches),
-      getDetails: vi.fn(),
-      getDetailsForAdmin: vi.fn(),
+      getMatchPageData: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -38,6 +37,30 @@ describe("MatchService", () => {
     expect(repository.listUpcomingForPlayer).toHaveBeenCalledWith("player-1");
   });
 
+  it("delegates match page data retrieval", async () => {
+    const matchPageData = { id: "match-1" };
+    const repository = {
+      listUpcomingForPlayer: vi.fn(),
+      getMatchPageData: vi.fn().mockResolvedValue(matchPageData),
+      schedule: vi.fn(),
+      declare: vi.fn(),
+      confirm: vi.fn(),
+      proposeCorrection: vi.fn(),
+      contestScore: vi.fn(),
+      listForArbitration: vi.fn(),
+      arbitrate: vi.fn(),
+      arbitrateScore: vi.fn(),
+      listForCorrection: vi.fn(),
+      correctResult: vi.fn(),
+    };
+    const service = new MatchService(repository);
+
+    await expect(service.getMatchPageData("match-1")).resolves.toBe(
+      matchPageData,
+    );
+    expect(repository.getMatchPageData).toHaveBeenCalledWith("match-1");
+  });
+
   it("validates and delegates a match schedule", async () => {
     const scheduledMatch = {
       id: "match-1",
@@ -46,8 +69,7 @@ describe("MatchService", () => {
     };
     const repository = {
       listUpcomingForPlayer: vi.fn(),
-      getDetails: vi.fn(),
-      getDetailsForAdmin: vi.fn(),
+      getMatchPageData: vi.fn(),
       schedule: vi.fn().mockResolvedValue(scheduledMatch),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -76,8 +98,7 @@ describe("MatchService", () => {
   it("does not call the repository with invalid data", async () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
-      getDetails: vi.fn(),
-      getDetailsForAdmin: vi.fn(),
+      getMatchPageData: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -118,8 +139,7 @@ describe("MatchService", () => {
     };
     const repository = {
       listUpcomingForPlayer: vi.fn(),
-      getDetails: vi.fn(),
-      getDetailsForAdmin: vi.fn(),
+      getMatchPageData: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn().mockResolvedValue(declaredMatch),
       confirm: vi.fn(),
@@ -156,8 +176,7 @@ describe("MatchService", () => {
   it("rejects an invalid declaration before calling the repository", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
-      getDetails: vi.fn(),
-      getDetailsForAdmin: vi.fn(),
+      getMatchPageData: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -194,8 +213,7 @@ describe("MatchService", () => {
     };
     const repository = {
       listUpcomingForPlayer: vi.fn(),
-      getDetails: vi.fn(),
-      getDetailsForAdmin: vi.fn(),
+      getMatchPageData: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn().mockResolvedValue(confirmedMatch),
@@ -232,8 +250,7 @@ describe("MatchService", () => {
     };
     const repository = {
       listUpcomingForPlayer: vi.fn(),
-      getDetails: vi.fn(),
-      getDetailsForAdmin: vi.fn(),
+      getMatchPageData: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -260,8 +277,7 @@ describe("MatchService", () => {
   it("rejects malformed corrections before calling the repository", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
-      getDetails: vi.fn(),
-      getDetailsForAdmin: vi.fn(),
+      getMatchPageData: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -303,8 +319,7 @@ describe("MatchService", () => {
     };
     const repository = {
       listUpcomingForPlayer: vi.fn(),
-      getDetails: vi.fn(),
-      getDetailsForAdmin: vi.fn(),
+      getMatchPageData: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -331,8 +346,7 @@ describe("MatchService", () => {
   it("rejects malformed score contests before calling the repository", () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
-      getDetails: vi.fn(),
-      getDetailsForAdmin: vi.fn(),
+      getMatchPageData: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -358,8 +372,7 @@ describe("MatchService", () => {
   it("validates and delegates complete result and score arbitration", async () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
-      getDetails: vi.fn(),
-      getDetailsForAdmin: vi.fn(),
+      getMatchPageData: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),
@@ -402,8 +415,7 @@ describe("MatchService", () => {
   it("validates and delegates a correction to a validated result", async () => {
     const repository = {
       listUpcomingForPlayer: vi.fn(),
-      getDetails: vi.fn(),
-      getDetailsForAdmin: vi.fn(),
+      getMatchPageData: vi.fn(),
       schedule: vi.fn(),
       declare: vi.fn(),
       confirm: vi.fn(),

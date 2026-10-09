@@ -98,36 +98,47 @@ export type UpcomingMatch = {
   court: string | null;
 };
 
-export type MatchDetails = {
-  tournamentId: string;
-  tournamentName: string;
-  roundLabel: string;
-  tournamentStatus: "DRAFT" | "IN_PROGRESS" | "FINISHED";
-  finalSetSuperTiebreak: boolean;
-  match: {
+type Player = { id: string; name: string };
+
+type ResultStatus =
+  | "PENDING"
+  | "DECLARED"
+  | "CORRECTION_PROPOSED"
+  | "DISPUTED"
+  | "VALIDATED";
+
+type ResultKind = "NORMAL" | "ABANDON" | "FORFEIT" | "BYE";
+
+export type MatchPageData = {
+  id: string;
+  tournament: {
     id: string;
-    round: number;
-    position: number;
-    player1: { id: string; name: string } | null;
-    player2: { id: string; name: string } | null;
-    status: Match["status"];
-    scoreStatus: Match["scoreStatus"];
-    resultKind: Match["resultKind"];
-    winnerId: string | null;
-    declaredById: string | null;
-    declaredWinnerId: string | null;
-    proposedWinnerId: string | null;
-    score: SetScore[] | null;
-    proposedScore: SetScore[] | null;
-    isBye: boolean;
+    name: string;
+    status: "DRAFT" | "IN_PROGRESS" | "FINISHED";
+    finalSetSuperTiebreak: boolean;
+  };
+  players: [Player | null, Player | null];
+  roundLabel: string;
+  details: {
     scheduledAt: string | null;
     court: string | null;
+    round: number;
+    position: number;
   };
-};
-
-export type AdminMatchDetails = Omit<MatchDetails, "match"> & {
-  match: MatchDetails["match"] & {
-    declaredScore: SetScore[] | null;
+  result: {
+    status: ResultStatus;
+    kind: ResultKind | null;
+    declared: {
+      byId: string;
+      winnerId: string;
+      score: SetScore[];
+    } | null;
+    proposed: {
+      winnerId: string;
+      score: SetScore[];
+    } | null;
+    winnerId: string | null;
+    score: SetScore[] | null;
   };
 };
 
@@ -163,8 +174,7 @@ export type CorrectionMatch = {
 
 export interface MatchRepository {
   listUpcomingForPlayer(playerId: string): Promise<UpcomingMatch[]>;
-  getDetails(id: string): Promise<MatchDetails>;
-  getDetailsForAdmin(id: string): Promise<AdminMatchDetails>;
+  getMatchPageData(id: string): Promise<MatchPageData>;
   schedule(id: string, data: ScheduleMatchInput): Promise<ScheduledMatch>;
   declare(
     id: string,
@@ -395,8 +405,8 @@ async function persistArbitration(
 }
 
 export class PrismaMatchRepository implements MatchRepository {
-  /** Returns the public details of a match and its tournament settings. */
-  async getDetails(id: string): Promise<MatchDetails> {
+  /** Returns the details of a match and its tournament settings. */
+  async getMatchPageData(id: string): Promise<MatchPageData> {
     const match = await prisma.match.findUnique({
       where: { id },
       select: {
@@ -407,76 +417,6 @@ export class PrismaMatchRepository implements MatchRepository {
         player1: { select: { id: true, name: true } },
         player2: { select: { id: true, name: true } },
         status: true,
-        scoreStatus: true,
-        resultKind: true,
-        winnerId: true,
-        declaredById: true,
-        declaredWinnerId: true,
-        proposedWinnerId: true,
-        score: true,
-        proposedScore: true,
-        isBye: true,
-        scheduledAt: true,
-        court: true,
-        tournament: {
-          select: {
-            name: true,
-            status: true,
-            finalSetSuperTiebreak: true,
-            matches: { select: { round: true } },
-          },
-        },
-      },
-    });
-
-    if (!match) {
-      throw new NotFoundError("Match introuvable.");
-    }
-
-    return {
-      tournamentId: match.tournamentId,
-      tournamentName: match.tournament.name,
-      roundLabel: roundLabel(
-        match.round,
-        Math.max(...match.tournament.matches.map(({ round }) => round)),
-      ),
-      tournamentStatus: match.tournament.status,
-      finalSetSuperTiebreak: match.tournament.finalSetSuperTiebreak,
-      match: {
-        id: match.id,
-        round: match.round,
-        position: match.position,
-        player1: match.player1,
-        player2: match.player2,
-        status: match.status,
-        scoreStatus: match.scoreStatus,
-        resultKind: match.resultKind,
-        winnerId: match.winnerId,
-        declaredById: match.declaredById,
-        declaredWinnerId: match.declaredWinnerId,
-        proposedWinnerId: match.proposedWinnerId,
-        score: parseStoredScore(match.score),
-        proposedScore: parseStoredScore(match.proposedScore),
-        isBye: match.isBye,
-        scheduledAt: match.scheduledAt?.toISOString() ?? null,
-        court: match.court,
-      },
-    };
-  }
-
-  /** Returns the full match details, including the declared score, for an administrator. */
-  async getDetailsForAdmin(id: string): Promise<AdminMatchDetails> {
-    const match = await prisma.match.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        tournamentId: true,
-        round: true,
-        position: true,
-        player1: { select: { id: true, name: true } },
-        player2: { select: { id: true, name: true } },
-        status: true,
-        scoreStatus: true,
         resultKind: true,
         winnerId: true,
         declaredById: true,
@@ -485,7 +425,6 @@ export class PrismaMatchRepository implements MatchRepository {
         proposedWinnerId: true,
         score: true,
         proposedScore: true,
-        isBye: true,
         scheduledAt: true,
         court: true,
         tournament: {
@@ -503,34 +442,47 @@ export class PrismaMatchRepository implements MatchRepository {
       throw new NotFoundError("Match introuvable.");
     }
 
+    const declaredScore = parseStoredScore(match.declaredScore);
+    const proposedScore = parseStoredScore(match.proposedScore);
+
     return {
-      tournamentId: match.tournamentId,
-      tournamentName: match.tournament.name,
+      id: match.id,
+      tournament: {
+        id: match.tournamentId,
+        name: match.tournament.name,
+        status: match.tournament.status,
+        finalSetSuperTiebreak: match.tournament.finalSetSuperTiebreak,
+      },
+      players: [match.player1, match.player2],
       roundLabel: roundLabel(
         match.round,
         Math.max(...match.tournament.matches.map(({ round }) => round)),
       ),
-      tournamentStatus: match.tournament.status,
-      finalSetSuperTiebreak: match.tournament.finalSetSuperTiebreak,
-      match: {
-        id: match.id,
-        round: match.round,
-        position: match.position,
-        player1: match.player1,
-        player2: match.player2,
-        status: match.status,
-        scoreStatus: match.scoreStatus,
-        resultKind: match.resultKind,
-        winnerId: match.winnerId,
-        declaredById: match.declaredById,
-        declaredWinnerId: match.declaredWinnerId,
-        declaredScore: parseStoredScore(match.declaredScore),
-        proposedWinnerId: match.proposedWinnerId,
-        score: parseStoredScore(match.score),
-        proposedScore: parseStoredScore(match.proposedScore),
-        isBye: match.isBye,
+      details: {
         scheduledAt: match.scheduledAt?.toISOString() ?? null,
         court: match.court,
+        round: match.round,
+        position: match.position,
+      },
+      result: {
+        status: match.status,
+        kind: match.resultKind,
+        declared:
+          match.declaredById !== null &&
+          match.declaredWinnerId !== null &&
+          declaredScore !== null
+            ? {
+                byId: match.declaredById,
+                winnerId: match.declaredWinnerId,
+                score: declaredScore,
+              }
+            : null,
+        proposed:
+          match.proposedWinnerId !== null && proposedScore !== null
+            ? { winnerId: match.proposedWinnerId, score: proposedScore }
+            : null,
+        winnerId: match.winnerId,
+        score: parseStoredScore(match.score),
       },
     };
   }

@@ -5,9 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NotFoundError } from "@/server/errors/app-error";
 
-const { getDetails, getDetailsForAdmin } = vi.hoisted(() => ({
-  getDetails: vi.fn(),
-  getDetailsForAdmin: vi.fn(),
+const { getMatchPageData } = vi.hoisted(() => ({
+  getMatchPageData: vi.fn(),
 }));
 
 vi.mock("next-auth", () => ({
@@ -34,36 +33,38 @@ vi.mock("@/server/matches/match.repository", () => ({
 
 vi.mock("@/server/matches/match.service", () => ({
   MatchService: class {
-    getDetails = getDetails;
-    getDetailsForAdmin = getDetailsForAdmin;
+    getMatchPageData = getMatchPageData;
   },
 }));
 
 import MatchPage from "./page";
 
 const details = {
-  tournamentId: "tournament-1",
-  tournamentName: "Club Open",
+  id: "match-1",
+  tournament: {
+    id: "tournament-1",
+    name: "Club Open",
+    status: "IN_PROGRESS" as const,
+    finalSetSuperTiebreak: false,
+  },
+  players: [
+    { id: "player-1", name: "Ada Lovelace" },
+    { id: "player-2", name: "Grace Hopper" },
+  ],
   roundLabel: "Quarts de finale",
-  tournamentStatus: "IN_PROGRESS" as const,
-  finalSetSuperTiebreak: false,
-  match: {
-    id: "match-1",
+  details: {
     round: 2,
     position: 0,
-    player1: { id: "player-1", name: "Ada Lovelace" },
-    player2: { id: "player-2", name: "Grace Hopper" },
-    status: "PENDING" as const,
-    scoreStatus: "NONE" as const,
-    winnerId: null,
-    declaredById: null,
-    declaredWinnerId: null,
-    proposedWinnerId: null,
-    score: null,
-    proposedScore: null,
-    isBye: false,
     scheduledAt: "2026-10-03T16:30:00.000Z",
     court: "Court 2",
+  },
+  result: {
+    status: "PENDING" as const,
+    kind: null,
+    winnerId: null,
+    declared: null,
+    proposed: null,
+    score: null,
   },
 };
 
@@ -88,7 +89,7 @@ describe("MatchPage", () => {
         role: "MEMBER",
       },
     });
-    getDetails.mockResolvedValue(details);
+    getMatchPageData.mockResolvedValue(details);
   });
 
   it("shows a dedicated match page with the result form for its player", async () => {
@@ -107,7 +108,7 @@ describe("MatchPage", () => {
     expect(
       screen.getByRole("link", { name: "Club Open" }),
     ).toHaveAttribute("href", "/tournoi/tournament-1");
-    expect(getDetails).toHaveBeenCalledWith("match-1");
+    expect(getMatchPageData).toHaveBeenCalledWith("match-1");
   });
 
   it("does not show a result form to a user outside the match", async () => {
@@ -131,19 +132,20 @@ describe("MatchPage", () => {
   });
 
   it("offers confirmation to the opponent who did not declare the result", async () => {
-    getDetails.mockResolvedValue({
+    getMatchPageData.mockResolvedValue({
       ...details,
-      match: {
-        ...details.match,
+      result: {
+        ...details.result,
         status: "DECLARED",
-        scoreStatus: "DECLARED",
-        declaredById: "player-1",
-        declaredWinnerId: "player-2",
-        proposedScore: [
-          { p1: 4, p2: 6 },
-          { p1: 6, p2: 3 },
-          { p1: 4, p2: 6 },
-        ],
+        declared: {
+          byId: "player-1",
+          winnerId: "player-2",
+          score: [
+            { p1: 4, p2: 6 },
+            { p1: 6, p2: 3 },
+            { p1: 4, p2: 6 },
+          ],
+        },
       },
     });
     vi.mocked(getServerSession).mockResolvedValue({
@@ -169,19 +171,26 @@ describe("MatchPage", () => {
   });
 
   it("lets the opponent propose the alternate winner with a score", async () => {
-    getDetails.mockResolvedValue({
+    getMatchPageData.mockResolvedValue({
       ...details,
-      match: {
-        ...details.match,
+      result: {
+        ...details.result,
         status: "DECLARED",
-        scoreStatus: "DECLARED",
-        declaredById: "player-1",
-        declaredWinnerId: "player-1",
-        proposedWinnerId: "player-1",
-        proposedScore: [
-          { p1: 6, p2: 4 },
-          { p1: 6, p2: 3 },
-        ],
+        declared: {
+          byId: "player-1",
+          winnerId: "player-1",
+          score: [
+            { p1: 6, p2: 4 },
+            { p1: 6, p2: 3 },
+          ],
+        },
+        proposed: {
+          winnerId: "player-1",
+          score: [
+            { p1: 6, p2: 4 },
+            { p1: 6, p2: 3 },
+          ],
+        },
       },
     });
     vi.mocked(getServerSession).mockResolvedValue({
@@ -200,7 +209,7 @@ describe("MatchPage", () => {
 
     expect(
       screen.getByRole("group", {
-        name: "Proposer l’autre vainqueur et son score",
+        name: "Proposer une correction",
       }),
     ).toBeVisible();
     expect(
@@ -213,14 +222,12 @@ describe("MatchPage", () => {
   });
 
   it("does not offer a correction proposal to the original declarant", async () => {
-    getDetails.mockResolvedValue({
+    getMatchPageData.mockResolvedValue({
       ...details,
-      match: {
-        ...details.match,
+      result: {
+        ...details.result,
         status: "DECLARED",
-        scoreStatus: "DECLARED",
-        declaredById: "player-1",
-        declaredWinnerId: "player-1",
+        declared: { byId: "player-1", winnerId: "player-1", score: [] },
       },
     });
 
@@ -234,13 +241,12 @@ describe("MatchPage", () => {
   });
 
   it("does not offer confirmation to the player who declared the result", async () => {
-    getDetails.mockResolvedValue({
+    getMatchPageData.mockResolvedValue({
       ...details,
-      match: {
-        ...details.match,
+      result: {
+        ...details.result,
         status: "DECLARED",
-        scoreStatus: "DECLARED",
-        declaredById: "player-1",
+        declared: { byId: "player-1", winnerId: "player-1", score: [] },
       },
     });
 
@@ -254,9 +260,9 @@ describe("MatchPage", () => {
   });
 
   it("does not offer result actions when the tournament is finished", async () => {
-    getDetails.mockResolvedValue({
+    getMatchPageData.mockResolvedValue({
       ...details,
-      tournamentStatus: "FINISHED",
+      tournament: { ...details.tournament, status: "FINISHED" },
     });
 
     const page = await MatchPage(pageProps("match-1"));
@@ -281,16 +287,19 @@ describe("MatchPage", () => {
         role: "ADMIN",
       },
     });
-    getDetailsForAdmin.mockResolvedValue({
+    getMatchPageData.mockResolvedValue({
       ...details,
-      match: {
-        ...details.match,
+      result: {
+        ...details.result,
         status: "DISPUTED",
-        declaredWinnerId: "player-1",
-        declaredScore: [
-          { p1: 6, p2: 4 },
-          { p1: 6, p2: 3 },
-        ],
+        declared: {
+          byId: "player-1",
+          winnerId: "player-1",
+          score: [
+            { p1: 6, p2: 4 },
+            { p1: 6, p2: 3 },
+          ],
+        },
       },
     });
 
@@ -299,8 +308,7 @@ describe("MatchPage", () => {
     expect(
       screen.getByRole("button", { name: "Valider l’arbitrage" }),
     ).toBeVisible();
-    expect(getDetailsForAdmin).toHaveBeenCalledWith("match-1");
-    expect(getDetails).not.toHaveBeenCalled();
+    expect(getMatchPageData).toHaveBeenCalledWith("match-1");
   });
 
   it("redirects a member who requests admin mode", async () => {
@@ -309,7 +317,7 @@ describe("MatchPage", () => {
     );
 
     expect(redirect).toHaveBeenCalledWith("/matches/match-1");
-    expect(getDetailsForAdmin).not.toHaveBeenCalled();
+    expect(getMatchPageData).not.toHaveBeenCalled();
   });
 
   it("redirects anonymous visitors to the login page", async () => {
@@ -319,11 +327,11 @@ describe("MatchPage", () => {
       "Redirected to /connexion",
     );
     expect(redirect).toHaveBeenCalledWith("/connexion");
-    expect(getDetails).not.toHaveBeenCalled();
+    expect(getMatchPageData).not.toHaveBeenCalled();
   });
 
   it("renders not found for an unknown match", async () => {
-    getDetails.mockRejectedValue(new NotFoundError("Match introuvable."));
+    getMatchPageData.mockRejectedValue(new NotFoundError("Match introuvable."));
 
     await expect(MatchPage(pageProps("missing"))).rejects.toThrow("Not found");
     expect(notFound).toHaveBeenCalled();
