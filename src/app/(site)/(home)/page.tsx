@@ -16,7 +16,7 @@ export default async function Home() {
   }
 
   return (
-    <main className={session.user.role === "ADMIN" ? style.admin : undefined}>
+    <main>
       <div className={style.intro}>
         <p className={style.eyebrow}>
           "TdT · Saison 2026"
@@ -27,7 +27,7 @@ export default async function Home() {
         </p>
       </div>
       <MatchsList currentUserId={session.user.role === "MEMBER" ? session.user.id : undefined} />
-      <TournamentsList />
+      <TournamentsList status="IN_PROGRESS" heading="Tournois en cours" />
     </main>
   );
 }
