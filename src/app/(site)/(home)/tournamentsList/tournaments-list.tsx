@@ -62,9 +62,13 @@ function isTournamentPage(result: unknown): result is TournamentPage {
 
 export function TournamentsList({
   isAdmin = false,
+  status,
+  heading = "Tous les tournois",
 }: {
   isAdmin?: boolean;
   currentUserId?: string;
+  status?: TournamentStatus;
+  heading?: string;
 }) {
   const [tournamentPage, setTournamentPage] = useState<TournamentPage | null>(
     null,
@@ -83,7 +87,9 @@ export function TournamentsList({
 
       try {
         const response = await fetch(
-          `/api/tournaments?page=${currentPage}&pageSize=20`,
+          `/api/tournaments?page=${currentPage}&pageSize=20${
+            status ? `&status=${status}` : ""
+          }`,
         );
         if (!response.ok) {
           throw new Error(`Unable to load tournaments (${response.status}).`);
@@ -114,7 +120,7 @@ export function TournamentsList({
     return () => {
       isCurrent = false;
     };
-  }, [currentPage, reloadCount]);
+  }, [currentPage, reloadCount, status]);
 
   const pageCount = tournamentPage
     ? Math.max(1, Math.ceil(tournamentPage.total / tournamentPage.pageSize))
@@ -122,10 +128,10 @@ export function TournamentsList({
 
   return (
     <div className={styles.dashboard}>
-      <section className={styles.section} aria-labelledby="tournaments-heading">
+      <section className={styles.section} aria-labelledby={`tournaments-heading-${status ?? "all"}`}>
         <div className={styles.sectionHeading}>
-          <h2 className={styles.eyebrow} id="tournaments-heading">
-            Tous les tournois
+          <h2 className={styles.eyebrow} id={`tournaments-heading-${status ?? "all"}`}>
+            {heading}
           </h2>
           {!isLoading && tournamentPage && (
             <span className={styles.count}>

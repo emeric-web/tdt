@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import type { ReactNode } from "react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next-auth", () => ({
@@ -22,7 +22,6 @@ vi.mock("./tournament-form", () => ({
 }));
 
 import AdminTournamentsPage from "./page";
-import { CreateTournamentForm } from "./tournament-form";
 
 describe("AdminTournamentsPage", () => {
   beforeEach(() => {
@@ -65,9 +64,14 @@ describe("AdminTournamentsPage", () => {
     });
 
     const page = await AdminTournamentsPage();
-    const children = page.props.children as ReactNode[];
+
+    render(page);
 
     expect(redirect).not.toHaveBeenCalled();
-    expect(children.at(-1)).toEqual(<CreateTournamentForm />);
+    expect(screen.getByTestId("create-tournament-form")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Annuler" })).toHaveAttribute(
+      "href",
+      "/admin",
+    );
   });
 });

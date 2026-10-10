@@ -6,11 +6,11 @@ import { Role } from "@/generated/prisma/enums";
 import { authOptions } from "@/server/auth/auth-options";
 import { PrismaMatchRepository } from "@/server/matches/match.repository";
 
-import { ArbitrationQueue } from "./arbitration-queue";
+import { ScheduleQueue } from "./schedule-queue";
 
 const matchRepository = new PrismaMatchRepository();
 
-export default async function AdminDisputesPage() {
+export default async function AdminMatchsAPlannifierPage() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
@@ -21,19 +21,16 @@ export default async function AdminDisputesPage() {
     redirect("/");
   }
 
-  const matches = await matchRepository.listForArbitration();
+  const matches = await matchRepository.listToSchedule();
 
   return (
     <main>
-      <h1>Arbitrer les résultats</h1>
+      <h1>Matchs à planifier</h1>
+      <p>Indiquez la date, l’heure et le court de chaque match.</p>
       <p>
-        L’arbitrage valide le score et le vainqueur. Le vainqueur avance dans le
-        tableau dans la même transaction.
+        <Link href="/admin">Retour</Link>
       </p>
-      <p>
-        <Link href="/admin/tournaments">Retour à l’administration</Link>
-      </p>
-      <ArbitrationQueue matches={matches} />
+      <ScheduleQueue matches={matches} />
     </main>
   );
 }

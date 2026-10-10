@@ -32,7 +32,7 @@ export default async function AdminCorrectionsPage() {
         est remplacé dans la même transaction.
       </p>
       <p>
-        <Link href="/admin/tournaments">Retour à l’administration</Link>
+        <Link href="/admin">Retour</Link>
       </p>
       <ResultCorrectionQueue matches={matches} />
     </main>

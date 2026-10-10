@@ -39,9 +39,6 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
   return (
     <main>
       <h1>Journal d’audit</h1>
-      <p>
-        <Link href="/admin/disputes">Retour aux arbitrages</Link>
-      </p>
       <form method="get">
         <label>
           Tournoi
@@ -60,6 +57,9 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
         </label>
         <button type="submit">Afficher le journal</button>
       </form>
+      <Link href="/admin">
+        Retour
+      </Link>
       {audit && (
         <>
           <h2>Décisions et opérations ({audit.total})</h2>

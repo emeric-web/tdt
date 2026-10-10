@@ -159,6 +159,18 @@ export type ArbitrationMatch = {
   finalSetSuperTiebreak: boolean;
 };
 
+export type MatchToSchedule = {
+  id: string;
+  tournamentId: string;
+  tournamentName: string;
+  round: number;
+  position: number;
+  player1: { id: string; name: string } | null;
+  player2: { id: string; name: string } | null;
+  scheduledAt: string | null;
+  court: string | null;
+};
+
 export type CorrectionMatch = {
   id: string;
   tournamentId: string;
@@ -1188,6 +1200,48 @@ export class PrismaMatchRepository implements MatchRepository {
       player1: match.player1,
       player2: match.player2,
       finalSetSuperTiebreak: match.tournament.finalSetSuperTiebreak,
+    }));
+  }
+
+  /** Returns pending matches of running tournaments that have no schedule yet. */
+  async listToSchedule(): Promise<MatchToSchedule[]> {
+    const matches = await prisma.match.findMany({
+      where: {
+        status: "PENDING",
+        isBye: false,
+        scheduledAt: null,
+        player1Id: { not: null },
+        player2Id: { not: null },
+        tournament: { status: "IN_PROGRESS" },
+      },
+      orderBy: [
+        { tournament: { name: "asc" } },
+        { round: "asc" },
+        { position: "asc" },
+      ],
+      select: {
+        id: true,
+        tournamentId: true,
+        round: true,
+        position: true,
+        scheduledAt: true,
+        court: true,
+        player1: { select: { id: true, name: true } },
+        player2: { select: { id: true, name: true } },
+        tournament: { select: { name: true } },
+      },
+    });
+
+    return matches.map((match) => ({
+      id: match.id,
+      tournamentId: match.tournamentId,
+      tournamentName: match.tournament.name,
+      round: match.round,
+      position: match.position,
+      player1: match.player1,
+      player2: match.player2,
+      scheduledAt: match.scheduledAt?.toISOString() ?? null,
+      court: match.court,
     }));
   }
 

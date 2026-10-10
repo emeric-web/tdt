@@ -705,6 +705,56 @@ describe("PrismaMatchRepository.listForArbitration", () => {
   });
 });
 
+describe("PrismaMatchRepository.listToSchedule", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("lists unscheduled pending matches whose players are known", async () => {
+    findMany.mockResolvedValue([
+      {
+        id: "match-1",
+        tournamentId: "tournament-1",
+        round: 1,
+        position: 0,
+        scheduledAt: null,
+        court: null,
+        player1: { id: "player-1", name: "Ada Lovelace" },
+        player2: { id: "player-2", name: "Grace Hopper" },
+        tournament: { name: "Club Open" },
+      },
+    ]);
+
+    await expect(
+      new PrismaMatchRepository().listToSchedule(),
+    ).resolves.toEqual([
+      {
+        id: "match-1",
+        tournamentId: "tournament-1",
+        tournamentName: "Club Open",
+        round: 1,
+        position: 0,
+        player1: { id: "player-1", name: "Ada Lovelace" },
+        player2: { id: "player-2", name: "Grace Hopper" },
+        scheduledAt: null,
+        court: null,
+      },
+    ]);
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          status: "PENDING",
+          isBye: false,
+          scheduledAt: null,
+          player1Id: { not: null },
+          player2Id: { not: null },
+          tournament: { status: "IN_PROGRESS" },
+        },
+      }),
+    );
+  });
+});
+
 describe("PrismaMatchRepository.correctResult", () => {
   const currentMatch = {
     id: "match-1",

@@ -4,9 +4,10 @@ import { redirect } from "next/navigation";
 import { Role } from "@/generated/prisma/enums";
 import { authOptions } from "@/server/auth/auth-options";
 
-import { CreateMemberForm } from "./user-form";
+import { CreateTournamentForm } from "./tournament-form";
+import Link from "next/link";
 
-export default async function AdminUsersPage() {
+export default async function AdminTournamentsPage() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
@@ -19,9 +20,15 @@ export default async function AdminUsersPage() {
 
   return (
     <main>
-      <h1>Créer un compte membre</h1>
-      <p>Seuls les administrateurs peuvent créer des comptes.</p>
-      <CreateMemberForm />
+      <h1>Créer un tournoi</h1>
+      <p>
+        Les tournois sont créés en préparation et peuvent être activés plus
+        tard.
+      </p>
+      <CreateTournamentForm />
+      <Link href="/admin">
+        Annuler
+      </Link>
     </main>
   );
 }

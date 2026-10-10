@@ -50,7 +50,7 @@ Prérequis : Node.js et Docker avec Docker Compose.
    La connexion se fait sur `/connexion`. Auth.js conserve la session dans un cookie JWT ; la déconnexion est disponible depuis la page de profil.
    La protection des pages et des routes métier exige un compte connecté. `/api-docs` reste public.
    Un administrateur peut créer des comptes membres depuis `/admin/users`.
-   Les utilisateurs connectés consultent les tournois sur l'accueil ; les administrateurs peuvent en créer depuis `/admin/tournaments`.
+   Les utilisateurs connectés consultent les tournois sur l'accueil ; les administrateurs peuvent en créer depuis `/admin/tournoi/nouveau`.
    Depuis la liste, un administrateur peut gérer les inscriptions et les têtes de série des tournois en préparation.
 
 ## Getting Started

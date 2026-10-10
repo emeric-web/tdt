@@ -93,4 +93,22 @@ describe("TournamentsList", () => {
       await screen.findByText("Aucun tournoi pour le moment."),
     ).toBeVisible();
   });
+
+  it("filters by status and shows a custom heading", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ items: [], page: 1, pageSize: 20, total: 0 }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<TournamentsList status="DRAFT" heading="Tournois en préparation" />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Tournois en préparation" }),
+    ).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/tournaments?page=1&pageSize=20&status=DRAFT",
+    );
+  });
 });

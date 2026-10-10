@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 type ApiErrorResponse = {
@@ -119,9 +118,6 @@ export function CreateTournamentForm() {
       <button type="submit" disabled={isSubmitting}>
         {isSubmitting ? "Création…" : "Créer le tournoi"}
       </button>
-      <p>
-        <Link href="/">Retour à la liste des tournois</Link>
-      </p>
     </form>
   );
 }
