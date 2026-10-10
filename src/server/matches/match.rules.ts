@@ -68,11 +68,15 @@ export function guardMatchConfirmation(
   declaredById: string | null,
   actorId: string,
 ): void {
+  const isDeclared = status === "DECLARED" && scoreStatus === "DECLARED";
+  const isCorrectionProposed =
+    status === "CORRECTION_PROPOSED" &&
+    scoreStatus === "CORRECTION_PROPOSED";
+
   if (
     tournamentStatus !== "IN_PROGRESS" ||
     isBye ||
-    status !== "DECLARED" ||
-    scoreStatus !== "DECLARED" ||
+    (!isDeclared && !isCorrectionProposed) ||
     declaredById === null
   ) {
     throw new ConflictError("Ce résultat ne peut pas être confirmé.");
@@ -90,9 +94,15 @@ export function guardMatchConfirmation(
     );
   }
 
-  if (actorId === declaredById) {
+  if (isDeclared && actorId === declaredById) {
     throw new ForbiddenError(
       "Le joueur ayant déclaré le résultat ne peut pas le confirmer.",
+    );
+  }
+
+  if (isCorrectionProposed && actorId !== declaredById) {
+    throw new ForbiddenError(
+      "Seul le joueur ayant déclaré le résultat initial peut confirmer la correction.",
     );
   }
 }

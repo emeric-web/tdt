@@ -726,6 +726,8 @@ export class PrismaMatchRepository implements MatchRepository {
           declaredById: true,
           declaredWinnerId: true,
           declaredScore: true,
+          proposedWinnerId: true,
+          proposedScore: true,
           version: true,
           nextMatchId: true,
           nextSlot: true,
@@ -758,11 +760,21 @@ export class PrismaMatchRepository implements MatchRepository {
         actorId,
       );
 
-      if (!match.declaredWinnerId || match.declaredScore === null) {
+      const isCorrectionProposed =
+        match.status === "CORRECTION_PROPOSED" &&
+        match.scoreStatus === "CORRECTION_PROPOSED";
+      const winnerToConfirm = isCorrectionProposed
+        ? match.proposedWinnerId
+        : match.declaredWinnerId;
+      const scoreToConfirm = isCorrectionProposed
+        ? match.proposedScore
+        : match.declaredScore;
+
+      if (!winnerToConfirm || scoreToConfirm === null) {
         throw new ConflictError("Le résultat déclaré est incomplet.");
       }
 
-      const score = parseStoredScore(match.declaredScore);
+      const score = parseStoredScore(scoreToConfirm);
       if (score === null) {
         throw new ConflictError("Le résultat déclaré est incomplet.");
       }
@@ -784,9 +796,9 @@ export class PrismaMatchRepository implements MatchRepository {
       const scoreWinnerId =
         scoreWinner === "p1" ? match.player1Id : match.player2Id;
       if (
-        (match.declaredWinnerId !== match.player1Id &&
-          match.declaredWinnerId !== match.player2Id) ||
-        match.declaredWinnerId !== scoreWinnerId
+        (winnerToConfirm !== match.player1Id &&
+          winnerToConfirm !== match.player2Id) ||
+        winnerToConfirm !== scoreWinnerId
       ) {
         throw new ConflictError(
           "Le résultat déclaré ne correspond plus aux joueurs du match.",
@@ -814,14 +826,16 @@ export class PrismaMatchRepository implements MatchRepository {
       const validated = await transaction.match.updateMany({
         where: {
           id: match.id,
-          status: "DECLARED",
-          scoreStatus: "DECLARED",
+          status: match.status,
+          scoreStatus: match.scoreStatus,
           version: match.version,
-          declaredById: { not: actorId },
+          ...(isCorrectionProposed
+            ? { declaredById: actorId }
+            : { declaredById: { not: actorId } }),
           tournament: { status: "IN_PROGRESS" },
         },
         data: {
-          winnerId: match.declaredWinnerId,
+          winnerId: winnerToConfirm,
           score,
           status: "VALIDATED",
           scoreStatus: "VALIDATED",
@@ -860,8 +874,8 @@ export class PrismaMatchRepository implements MatchRepository {
             : { id: nextMatchId, status: "PENDING" as const, player2Id: null };
         const nextMatchData =
           nextSlot === 1
-            ? { player1Id: match.declaredWinnerId, version: { increment: 1 } }
-            : { player2Id: match.declaredWinnerId, version: { increment: 1 } };
+            ? { player1Id: winnerToConfirm, version: { increment: 1 } }
+            : { player2Id: winnerToConfirm, version: { increment: 1 } };
         const advanced = await transaction.match.updateMany({
           where: nextMatchWhere,
           data: nextMatchData,

@@ -199,8 +199,24 @@ describe("guardMatchScheduling", () => {
         actorId,
       );
 
+    const confirmCorrection = (actorId = "player-1") =>
+      guardMatchConfirmation(
+        "CORRECTION_PROPOSED",
+        "CORRECTION_PROPOSED",
+        false,
+        "IN_PROGRESS",
+        "player-1",
+        "player-2",
+        "player-1",
+        actorId,
+      );
+
     it("allows the opponent to confirm a declared result", () => {
       expect(confirm).not.toThrow();
+    });
+
+    it("allows the original declarant to confirm a proposed correction", () => {
+      expect(confirmCorrection).not.toThrow();
     });
 
     describe("guardMatchCorrectionProposal", () => {
@@ -323,6 +339,10 @@ describe("guardMatchScheduling", () => {
 
     it("rejects confirmation by a non-participant", () => {
       expect(() => confirm("other-user")).toThrow(ForbiddenError);
+    });
+
+    it("rejects correction confirmation by the non-declarant", () => {
+      expect(() => confirmCorrection("player-2")).toThrow(ForbiddenError);
     });
 
     it("rejects a declaration made by someone outside the match", () => {

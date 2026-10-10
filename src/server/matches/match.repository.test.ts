@@ -1193,6 +1193,51 @@ describe("PrismaMatchRepository.declare", () => {
       expect(transaction.tournament.updateMany).not.toHaveBeenCalled();
     });
 
+    it("validates a proposed correction when the original declarant confirms it", async () => {
+      transaction.match.findUnique.mockResolvedValue(
+        declaredMatch({
+          status: "CORRECTION_PROPOSED",
+          scoreStatus: "CORRECTION_PROPOSED",
+          proposedWinnerId: "player-1",
+          proposedScore: [
+            { p1: 6, p2: 4 },
+            { p1: 6, p2: 3 },
+          ],
+        }),
+      );
+
+      await new PrismaMatchRepository().confirm("match-1", "player-1");
+
+      expect(transaction.match.updateMany).toHaveBeenNthCalledWith(1, {
+        where: {
+          id: "match-1",
+          status: "CORRECTION_PROPOSED",
+          scoreStatus: "CORRECTION_PROPOSED",
+          version: 3,
+          declaredById: "player-1",
+          tournament: { status: "IN_PROGRESS" },
+        },
+        data: {
+          winnerId: "player-1",
+          score: [
+            { p1: 6, p2: 4 },
+            { p1: 6, p2: 3 },
+          ],
+          status: "VALIDATED",
+          scoreStatus: "VALIDATED",
+          version: { increment: 1 },
+        },
+      });
+      expect(transaction.match.updateMany).toHaveBeenNthCalledWith(2, {
+        where: {
+          id: "final-match",
+          status: "PENDING",
+          player1Id: null,
+        },
+        data: { player1Id: "player-1", version: { increment: 1 } },
+      });
+    });
+
     it("advances a winner to the second slot when configured", async () => {
       transaction.match.findUnique.mockResolvedValue(
         declaredMatch({ nextSlot: 2 }),
