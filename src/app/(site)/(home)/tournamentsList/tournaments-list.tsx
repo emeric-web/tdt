@@ -61,7 +61,6 @@ function isTournamentPage(result: unknown): result is TournamentPage {
 }
 
 export function TournamentsList({
-  isAdmin = false,
   status,
   heading = "Tous les tournois",
 }: {

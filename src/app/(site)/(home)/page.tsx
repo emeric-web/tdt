@@ -19,7 +19,7 @@ export default async function Home() {
     <main>
       <div className={style.intro}>
         <p className={style.eyebrow}>
-          "TdT · Saison 2026"
+          TdT · Saison 2026
         </p>
         <h1>Bonjour, {session.user.name} 👋</h1>
         <p>

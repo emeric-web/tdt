@@ -4,11 +4,12 @@ import { useState } from "react";
 
 import { MatchScoreForm } from "./match-score-form";
 import { MatchScoreConfirmationBtn } from "./match-score-confirmation-btn";
+import type { BracketPlayer } from "@/types/bracket";
 
 type MatchReviewActionsProps = {
   matchId: string;
-  player1: any;
-  player2: any;
+  player1: BracketPlayer | null;
+  player2: BracketPlayer | null;
   canReview: boolean;
   canReviewCorrection: boolean;
   finalSetSuperTiebreak: boolean;
@@ -39,7 +40,7 @@ export function MatchReviewActions({
       {canReviewCorrection && <button type="button">Refuser</button>}
     </div>
 
-    {isCorrecting && canReview && (
+    {isCorrecting && canReview && player1 && player2 && (
         <MatchScoreForm
           matchId={matchId}
           player1={player1}

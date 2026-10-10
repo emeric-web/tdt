@@ -5,14 +5,6 @@ import type {
   PlayerLineProps,
 } from "@/types/bracket";
 
-const STATUS_LABEL: Record<MatchStatus, string> = {
-  PENDING: "À jouer",
-  DECLARED: "En attente de confirmation",
-  CORRECTION_PROPOSED: "Correction proposée",
-  DISPUTED: "En litige",
-  VALIDATED: "Validé",
-};
-
 function formatDate(date: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
     dateStyle: "short",
