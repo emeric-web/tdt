@@ -1,5 +1,6 @@
 .header {
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 10;
   color: var(--tdt-text-header);
   background: var(--tdt-bg-header);
@@ -172,9 +173,5 @@
   .brand {
     gap: 0.45rem;
     font-size: 0.61rem;
-  }
-
-  .adminBadge {
-    display: none;
   }
 }

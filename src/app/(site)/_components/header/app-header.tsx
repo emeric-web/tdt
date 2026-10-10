@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 import styles from "./app-header.module.css";
-import { AnonymizeAccountButton } from "@/app/(site)/_components/auth/anonymize-account";
 
 export function AppHeader() {
   const { data: session, status } = useSession();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const user = session?.user;
   const isAdmin = user?.role === "ADMIN";
+  const pathname = usePathname();
+  const isAdminArea =
+    isAdmin &&
+    pathname.startsWith("/admin");
   const userName = user?.name ?? user?.email ?? "Mon compte";
   const initials =
     userName
@@ -23,7 +25,7 @@ export function AppHeader() {
       .toLocaleUpperCase("fr") ?? "?";
 
   return (
-    <header className={`${styles.header} ${isAdmin ? styles.admin : ""}`}>
+    <header className={`${styles.header} ${isAdminArea ? styles.admin : ""}`}>
       <div className={styles.inner}>
         <Link
           className={styles.brand}
@@ -43,7 +45,14 @@ export function AppHeader() {
             </span>
           ) : user && (
             <>
-              {isAdmin && <span className={styles.adminBadge}>ADMIN</span>}
+              {isAdmin &&
+                <Link
+                  href="/admin"
+                  prefetch={false}
+                >
+                  <span className={styles.adminBadge}>ADMIN</span>
+                </Link>
+              }
               <Link
                 className={styles.avatar}
                 href="/profil"
@@ -52,45 +61,6 @@ export function AppHeader() {
               >
                 {initials}
               </Link>
-              {/* 
-              {isMenuOpen && (
-                <nav
-                  className={styles.menu}
-                  id="account-menu"
-                  aria-label="Menu du compte"
-                >
-                  <p className={styles.accountName}>{userName}</p>
-                  {isAdmin && (
-                    <>
-                      <Link
-                        href="/admin/disputes"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        Arbitrer les résultats
-                      </Link>
-                      <Link
-                        href="/admin/tournaments"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        Créer un tournoi
-                      </Link>
-                      <Link
-                        href="/admin/users"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        Gérer les membres
-                      </Link>
-                      <Link
-                        href="/admin/audit"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        Journal d’audit
-                      </Link>
-                    </>
-                  )}
-                </nav>
-              )}
-              */}
             </>
           )}
         </div>
