@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -163,7 +163,7 @@ describe("MatchPage", () => {
     render(page);
 
     expect(
-      screen.getByRole("button", { name: "Confirmer le résultat" }),
+      screen.getByRole("button", { name: "Confirmer" }),
     ).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Déclarer le résultat" }),
@@ -208,6 +208,11 @@ describe("MatchPage", () => {
     render(page);
 
     expect(
+      screen.queryByRole("group", { name: "Proposer une correction" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Corriger" }));
+
+    expect(
       screen.getByRole("group", {
         name: "Proposer une correction",
       }),
@@ -216,9 +221,7 @@ describe("MatchPage", () => {
       screen.getByRole("button", { name: "Proposer la correction" }),
     ).toBeVisible();
     expect(screen.getByRole("option", { name: "Grace Hopper" })).toBeVisible();
-    expect(
-      screen.queryByRole("option", { name: "Ada Lovelace" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Ada Lovelace" })).toBeVisible();
   });
 
   it("does not offer a correction proposal to the original declarant", async () => {
@@ -255,7 +258,7 @@ describe("MatchPage", () => {
     render(page);
 
     expect(
-      screen.queryByRole("button", { name: "Confirmer le résultat" }),
+      screen.queryByRole("button", { name: "Confirmer" }),
     ).not.toBeInTheDocument();
   });
 
@@ -273,7 +276,7 @@ describe("MatchPage", () => {
       screen.queryByRole("button", { name: "Déclarer le résultat" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Confirmer le résultat" }),
+      screen.queryByRole("button", { name: "Confirmer" }),
     ).not.toBeInTheDocument();
   });
 

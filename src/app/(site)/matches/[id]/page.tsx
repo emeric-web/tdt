@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
 
 import { MatchCard } from "@/app/(site)/_components/matchCard/match-card";
-import { MatchScoreConfirmationBtn } from "./match-score-confirmation-btn";
+import { MatchReviewActions } from "./match-review-actions";
 import { MatchScoreForm } from "./match-score-form";
 import { MatchRulingAdmin } from "./match-ruling-admin";
 
@@ -85,6 +85,12 @@ export default async function MatchPage({ params, searchParams }: PageProps) {
     result.declared !== null &&
     result.declared.byId !== session.user.id;
 
+  const canReviewCorrection = isParticipant &&
+    matchData.tournament.status === "IN_PROGRESS" &&
+    result.status === "CORRECTION_PROPOSED" &&
+    result.proposed !== null &&
+    result.declared!.byId === session.user.id;
+
   const arbitrationMatch: ArbitrationMatch | null = isAdminMode
     ? {
         id: matchData.id,
@@ -126,20 +132,18 @@ export default async function MatchPage({ params, searchParams }: PageProps) {
           finalSetSuperTiebreak={matchData.tournament.finalSetSuperTiebreak}
         />
       )}
-      {canReview && <MatchScoreConfirmationBtn matchId={match.id} />}
-      {canReview &&
-        match.player1 &&
-        match.player2 &&
-        match.declaredWinnerId && (
-          <MatchScoreForm
-            matchId={match.id}
-            player1={match.player1}
-            player2={match.player2}
-            finalSetSuperTiebreak={matchData.tournament.finalSetSuperTiebreak}
-            mode="propose-correction"
-            declaredWinnerId={match.declaredWinnerId}
-          />
-        )}
+
+      {(canReviewCorrection || canReview) && (
+        <MatchReviewActions
+          canReview={canReview}
+          canReviewCorrection={canReviewCorrection}
+          matchId={match.id}
+          player1={match.player1}
+          player2={match.player2}
+          finalSetSuperTiebreak={matchData.tournament.finalSetSuperTiebreak}
+        />
+      )}
+
       {arbitrationMatch && <MatchRulingAdmin match={arbitrationMatch} />}
     </main>
   );

@@ -25,7 +25,6 @@ export function MatchScoreForm({
   player2,
   finalSetSuperTiebreak,
   mode = "declare",
-  declaredWinnerId,
 }: ScoreFormProps) {
   const router = useRouter();
   const [sets, setSets] = useState<string[][]>([
@@ -117,33 +116,37 @@ export function MatchScoreForm({
   }
 
   const players = [player1, player2];
-  const winnerOptions = players.filter(
-    (player) => mode !== "propose-correction" || player.id !== declaredWinnerId,
-  );
+  const winnerOptions = players;
 
   return (
     <form onSubmit={handleSubmit}>
       <fieldset disabled={isSubmitting}>
         <legend>
           {mode === "propose-correction"
-            ? "Proposer l’autre vainqueur et son score"
+            ? "Proposer une correction"
             : mode === "contest-score"
               ? "Contester le score"
               : "Déclarer le résultat"}
         </legend>
-        {mode === "propose-correction" && (
-          <p>
-            Cette proposition ne valide pas le résultat et ne fait pas avancer
-            de joueur.
-          </p>
+
+        {mode !== "contest-score" && (
+          <label>
+            Vainqueur
+            <select
+              required
+              value={winnerId}
+              onChange={(event) => setWinnerId(event.target.value)}
+            >
+              <option value="">Sélectionner un vainqueur</option>
+              {winnerOptions.map((player) => (
+                <option key={player.id} value={player.id}>
+                  {player.name}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
-        {mode === "contest-score" && (
-          <p>
-            Vainqueur conservé :{" "}
-            {players.find((player) => player.id === declaredWinnerId)?.name}.
-            Seul le score est contesté ; aucun joueur n’avance.
-          </p>
-        )}
+
         {[0, 1, 2].map((setIndex) => (
           <fieldset key={setIndex}>
             <legend>
@@ -181,23 +184,6 @@ export function MatchScoreForm({
             ))}
           </fieldset>
         ))}
-        {mode !== "contest-score" && (
-          <label>
-            Vainqueur
-            <select
-              required
-              value={winnerId}
-              onChange={(event) => setWinnerId(event.target.value)}
-            >
-              <option value="">Sélectionner un vainqueur</option>
-              {winnerOptions.map((player) => (
-                <option key={player.id} value={player.id}>
-                  {player.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
         <button type="submit">
           {isSubmitting
             ? "Envoi…"

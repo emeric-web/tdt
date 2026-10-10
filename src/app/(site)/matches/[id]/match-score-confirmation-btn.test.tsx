@@ -33,7 +33,7 @@ describe("MatchConfirmationBtn", () => {
 
     render(<MatchScoreConfirmationBtn matchId="match-1" />);
     await user.click(
-      screen.getByRole("button", { name: "Confirmer le résultat" }),
+      screen.getByRole("button", { name: "Confirmer" }),
     );
 
     expect(fetchMock).toHaveBeenCalledWith("/api/matches/match-1/confirm", {
@@ -58,7 +58,7 @@ describe("MatchConfirmationBtn", () => {
 
     render(<MatchScoreConfirmationBtn matchId="match-1" />);
     await user.click(
-      screen.getByRole("button", { name: "Confirmer le résultat" }),
+      screen.getByRole("button", { name: "Confirmer" }),
     );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(

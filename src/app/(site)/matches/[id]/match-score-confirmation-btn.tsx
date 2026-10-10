@@ -56,7 +56,7 @@ export function MatchScoreConfirmationBtn({ matchId }: { matchId: string }) {
   return (
     <div>
       <button type="button" disabled={isSubmitting} onClick={confirmResult}>
-        {isSubmitting ? "Confirmation…" : "Confirmer le résultat"}
+        {isSubmitting ? "Confirmation…" : "Confirmer"}
       </button>
       {errorMessage && <p role="alert">{errorMessage}</p>}
     </div>
