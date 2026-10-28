@@ -71,7 +71,7 @@ Les valeurs de `.env.example` sont réservées au développement local : en prod
 
 ## Installation locale
 
-Prérequis : Node.js et Docker avec Docker Compose.
+Prérequis : Node.js 24.14.1 (version indiquée dans `.nvmrc`) et Docker avec Docker Compose.
 
 1. Créer la configuration locale avant d'installer les dépendances :
 
@@ -122,14 +122,15 @@ Prérequis : Node.js et Docker avec Docker Compose.
 
 ## Tests et qualité
 
-| Commande                 | Contenu                                                      |
-| ------------------------ | ------------------------------------------------------------ |
-| `npm test`               | Tests unitaires, de services, de routes API et de composants |
-| `npm test -- --coverage` | Mêmes tests avec rapport de couverture (dossier `coverage/`) |
-| `npm run test:e2e`       | Parcours de bout en bout (voir ci-dessous)                   |
-| `npm run lint`           | Analyse ESLint                                               |
-| `npm run format:check`   | Vérification du formatage Prettier                           |
-| `npm run build`          | Compilation de production et vérification des types          |
+| Commande                | Contenu                                                      |
+| ----------------------- | ------------------------------------------------------------ |
+| `npm test`              | Tests unitaires, de services, de routes API et de composants |
+| `npm run test:coverage` | Mêmes tests avec rapport de couverture (dossier `coverage/`) |
+| `npm run test:e2e`      | Parcours de bout en bout (voir ci-dessous)                   |
+| `npm run lint`          | Analyse ESLint                                               |
+| `npm run typecheck`     | Vérification TypeScript sans émission de fichiers            |
+| `npm run format:check`  | Vérification du formatage Prettier                           |
+| `npm run build`         | Compilation de production                                    |
 
 Les tests suivent le schéma Arrange–Act–Assert et isolent la base de données par de faux repositories ; seul le test E2E utilise PostgreSQL.
 

@@ -2,6 +2,9 @@
   "name": "tdt-app",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=24.14.1 <25"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,8 +13,10 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "test:e2e": "tsx scripts/test-e2e.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
