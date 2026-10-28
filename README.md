@@ -168,6 +168,12 @@ Le test navigateur exécute le parcours réel de connexion, de déclaration du r
 La commande E2E applique les migrations uniquement à la base configurée par `E2E_DATABASE_URL`, dont le nom doit se terminer par `_e2e`.
 Les données de test utilisent des identifiants uniques et sont supprimées à la fin de l'exécution.
 
+## Intégration continue
+
+Le workflow GitHub Actions `.github/workflows/ci.yml` s'exécute sur chaque push et chaque pull request. Il contrôle ESLint et TypeScript, lance les tests Vitest avec couverture et génère `test-results/junit.xml`. Ce rapport est archivé comme artefact et affiché dans le résumé du workflow. Le parcours Playwright utilise un service PostgreSQL éphémère ; les rapports de couverture sont archivés.
+
+Après le succès de tous les contrôles, chaque push sur une branche construit puis publie l'image `ghcr.io/emeric-web/tdt:<branche>-<sha court>`. L'authentification GHCR utilise le `GITHUB_TOKEN` du workflow ; aucun secret de registre supplémentaire n'est requis.
+
 ## Commandes utiles
 
 - `npm run db:generate` régénère le client Prisma après une modification du schéma.

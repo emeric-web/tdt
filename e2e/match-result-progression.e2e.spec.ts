@@ -187,7 +187,7 @@ test("a declared result is confirmed by the opponent and advances its winner", a
 
   await signIn(page, users[1]);
   await page.goto(`/matches/${firstRoundMatchId}`);
-  await page.getByRole("button", { name: "Confirmer le résultat" }).click();
+  await page.getByRole("button", { name: "Confirmer" }).click();
 
   await expect(page.getByText("Terminé", { exact: true })).toBeVisible();
   const bracketAfterConfirmation = await page.request.get(
