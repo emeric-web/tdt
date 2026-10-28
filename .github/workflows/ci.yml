@@ -1,0 +1,138 @@
+name: Qualité, tests et publication Docker
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CI: "true"
+  REGISTRY: ghcr.io
+
+jobs:
+  quality-and-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tdt
+          POSTGRES_PASSWORD: tdt_ci_password
+          POSTGRES_DB: tdt_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tdt -d tdt_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://tdt:tdt_ci_password@127.0.0.1:5432/tdt_e2e?schema=public
+      E2E_DATABASE_URL: postgresql://tdt:tdt_ci_password@127.0.0.1:5432/tdt_e2e?schema=public
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v7
+
+      - name: Préparer Node.js et le cache npm
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Vérifier ESLint
+        run: npm run lint
+
+      - name: Vérifier les types TypeScript
+        run: npm run typecheck
+
+      - name: Préparer le dossier des rapports
+        run: mkdir -p test-results
+
+      - name: Exécuter les tests avec couverture
+        run: npm run test:coverage -- --reporter=default --reporter=junit --outputFile.junit=test-results/junit.xml
+
+      - name: Installer Chromium pour Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Exécuter les tests E2E sur PostgreSQL
+        run: npm run test:e2e
+
+      - name: Archiver les rapports de couverture
+        if: always() && hashFiles('coverage/**') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: couverture-tests
+          path: coverage/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Archiver le rapport JUnit
+        if: always() && hashFiles('test-results/junit.xml') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: rapport-junit
+          path: test-results/junit.xml
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Afficher les résultats des tests
+        if: always() && hashFiles('test-results/junit.xml') != ''
+        uses: mikepenz/action-junit-report@v6
+        with:
+          report_paths: test-results/junit.xml
+          annotate_only: true
+          job_summary: true
+          detailed_summary: true
+          fail_on_parse_error: true
+          require_tests: true
+
+      - name: Archiver les résultats Playwright en cas d'échec
+        if: failure() && hashFiles('test-results/playwright/**') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: resultats-playwright
+          path: test-results/playwright/
+          retention-days: 7
+          if-no-files-found: warn
+
+  publish-image:
+    needs: quality-and-tests
+    if: github.event_name == 'push' && github.ref_type == 'branch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v7
+
+      - name: Préparer le nom de l'image
+        run: |
+          repository="${GITHUB_REPOSITORY,,}"
+          branch=$(printf '%s' "$GITHUB_REF_NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9_.-]+/-/g; s/^[.-]+/_/')
+          tag="${branch:0:80}-${GITHUB_SHA:0:7}"
+          echo "IMAGE=$REGISTRY/$repository:$tag" >> "$GITHUB_ENV"
+
+      - name: Se connecter à GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construire l'image
+        run: docker build -t "$IMAGE" .
+
+      - name: Publier l'image
+        run: docker push "$IMAGE"

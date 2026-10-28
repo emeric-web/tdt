@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      packages: write
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Préparer Node.js et le cache npm
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Générer la version, le changelog et la release GitHub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
+      - name: Récupérer la version publiée
+        id: version
+        run: |
+          tag=$(git tag --points-at HEAD | grep -E '^v[0-9]' | head -n1 || true)
+          echo "value=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Se connecter à GHCR
+        if: steps.version.outputs.value != ''
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construire et publier les images numérotées
+        if: steps.version.outputs.value != ''
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          image="$REGISTRY/${GITHUB_REPOSITORY,,}"
+          major="${VERSION%%.*}"
+          minor="${VERSION%.*}"
+          docker build \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            -t "$image:$VERSION" \
+            -t "$image:$minor" \
+            -t "$image:$major" \
+            -t "$image:latest" \
+            .
+          docker push --all-tags "$image"

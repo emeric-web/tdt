@@ -1,9 +1,5 @@
 import styles from "./match-card.module.css";
-import type {
-  MatchCardProps,
-  MatchStatus,
-  PlayerLineProps,
-} from "@/types/bracket";
+import type { MatchCardProps, PlayerLineProps } from "@/types/bracket";
 
 function formatDate(date: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -92,16 +88,15 @@ export function MatchCard({ match }: MatchCardProps) {
         )}
       </p>
       <p className={styles.meta}>
-        {["DECLARED", "CORRECTION_PROPOSED", "DISPUTED"].includes(match.status) &&
-          "En attente de confirmation"
-        }
+        {["DECLARED", "CORRECTION_PROPOSED", "DISPUTED"].includes(
+          match.status,
+        ) && "En attente de confirmation"}
         {match.status === "VALIDATED" && (
-          <>Terminé
-          {match.resultKind === "ABANDON" &&
-            " - Résultat après abandon"
-          }{match.resultKind === "FORFEIT" &&
-            " - Forfait"
-          }</>
+          <>
+            Terminé
+            {match.resultKind === "ABANDON" && " - Résultat après abandon"}
+            {match.resultKind === "FORFEIT" && " - Forfait"}
+          </>
         )}
       </p>
     </article>

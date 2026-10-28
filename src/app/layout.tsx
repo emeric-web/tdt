@@ -1,9 +1,9 @@
-export default function RootLayout({ children }: LayoutProps<"/">) {
+import type { ReactNode } from "react";
+
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="fr">
-      <body>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

@@ -2,6 +2,7 @@ node_modules/
 .next/
 coverage/
 docs/
+CHANGELOG.md
 next-env.d.ts
 src/generated/prisma/
 prisma/schema.prisma

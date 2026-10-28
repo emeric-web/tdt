@@ -71,7 +71,7 @@ Les valeurs de `.env.example` sont réservées au développement local : en prod
 
 ## Installation locale
 
-Prérequis : Node.js et Docker avec Docker Compose.
+Prérequis : Node.js 24.22.1 (version indiquée dans `.nvmrc`) et Docker avec Docker Compose.
 
 1. Créer la configuration locale avant d'installer les dépendances :
 
@@ -120,16 +120,25 @@ Prérequis : Node.js et Docker avec Docker Compose.
    Les utilisateurs connectés consultent les tournois sur l'accueil ; les administrateurs peuvent en créer depuis `/admin/tournoi/nouveau`.
    Depuis la liste, un administrateur peut gérer les inscriptions et les têtes de série des tournois en préparation.
 
+   Pour démarrer l'application dans Docker à la place du serveur de développement :
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+   Le service `app` attend que PostgreSQL soit sain et est disponible sur [http://localhost:3000](http://localhost:3000). Les migrations et les données de démonstration restent à appliquer avec les commandes ci-dessus avant le premier démarrage applicatif.
+
 ## Tests et qualité
 
-| Commande                 | Contenu                                                      |
-| ------------------------ | ------------------------------------------------------------ |
-| `npm test`               | Tests unitaires, de services, de routes API et de composants |
-| `npm test -- --coverage` | Mêmes tests avec rapport de couverture (dossier `coverage/`) |
-| `npm run test:e2e`       | Parcours de bout en bout (voir ci-dessous)                   |
-| `npm run lint`           | Analyse ESLint                                               |
-| `npm run format:check`   | Vérification du formatage Prettier                           |
-| `npm run build`          | Compilation de production et vérification des types          |
+| Commande                | Contenu                                                      |
+| ----------------------- | ------------------------------------------------------------ |
+| `npm test`              | Tests unitaires, de services, de routes API et de composants |
+| `npm run test:coverage` | Mêmes tests avec rapport de couverture (dossier `coverage/`) |
+| `npm run test:e2e`      | Parcours de bout en bout (voir ci-dessous)                   |
+| `npm run lint`          | Analyse ESLint                                               |
+| `npm run typecheck`     | Vérification TypeScript sans émission de fichiers            |
+| `npm run format:check`  | Vérification du formatage Prettier                           |
+| `npm run build`         | Compilation de production                                    |
 
 Les tests suivent le schéma Arrange–Act–Assert et isolent la base de données par de faux repositories ; seul le test E2E utilise PostgreSQL.
 
@@ -158,6 +167,32 @@ Le test navigateur exécute le parcours réel de connexion, de déclaration du r
 
 La commande E2E applique les migrations uniquement à la base configurée par `E2E_DATABASE_URL`, dont le nom doit se terminer par `_e2e`.
 Les données de test utilisent des identifiants uniques et sont supprimées à la fin de l'exécution.
+
+## Intégration continue
+
+Le workflow GitHub Actions `.github/workflows/ci.yml` s'exécute sur chaque push et chaque pull request. Il contrôle ESLint et TypeScript, lance les tests Vitest avec couverture et génère `test-results/junit.xml`. Ce rapport est archivé comme artefact et affiché dans le résumé du workflow. Le parcours Playwright utilise un service PostgreSQL éphémère ; les rapports de couverture sont archivés.
+
+Après le succès de tous les contrôles, chaque push sur une branche construit puis publie l'image `ghcr.io/emeric-web/tdt:<branche>-<sha court>`. L'authentification GHCR utilise le `GITHUB_TOKEN` du workflow ; aucun secret de registre supplémentaire n'est requis.
+
+## Release et versions
+
+Les versions sont calculées par [semantic-release](https://semantic-release.gitbook.io) (configuration dans `.releaserc.json`) à partir des messages de commit au format Conventional Commits :
+
+- `fix:` incrémente la version corrective (`1.0.0` → `1.0.1`) ;
+- `feat:` incrémente la version mineure (`1.0.0` → `1.1.0`) ;
+- `feat!:` ou un pied de message `BREAKING CHANGE:` incrémente la version majeure ;
+- `docs:`, `chore:`, `ci:`, `test:` et `refactor:` ne déclenchent pas de release.
+
+Le workflow `.github/workflows/release.yml` se lance à la main (_Actions_ → _Release_ → _Run workflow_) et uniquement sur `main`. Il :
+
+1. calcule la prochaine version et crée le tag `vX.Y.Z` ;
+2. met à jour `CHANGELOG.md` et la version de `package.json`, puis les commit avec `chore(release): X.Y.Z [skip ci]` ;
+3. publie la release GitHub avec ses notes ;
+4. construit l'image Docker et la publie sur GHCR avec les tags `X.Y.Z`, `X.Y`, `X` et `latest` (par exemple `ghcr.io/emeric-web/tdt:1.2.0`).
+
+Si aucun commit depuis le dernier tag ne justifie une version, rien n'est publié. Le workflow utilise le `GITHUB_TOKEN` ; si la protection de `main` interdit le commit de release, autoriser `github-actions` à contourner la règle.
+
+`npm run release:dry-run` simule une release en local (nécessite `GITHUB_TOKEN`).
 
 ## Commandes utiles
 
