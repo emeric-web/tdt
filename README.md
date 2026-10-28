@@ -174,6 +174,26 @@ Le workflow GitHub Actions `.github/workflows/ci.yml` s'exécute sur chaque push
 
 Après le succès de tous les contrôles, chaque push sur une branche construit puis publie l'image `ghcr.io/emeric-web/tdt:<branche>-<sha court>`. L'authentification GHCR utilise le `GITHUB_TOKEN` du workflow ; aucun secret de registre supplémentaire n'est requis.
 
+## Release et versions
+
+Les versions sont calculées par [semantic-release](https://semantic-release.gitbook.io) (configuration dans `.releaserc.json`) à partir des messages de commit au format Conventional Commits :
+
+- `fix:` incrémente la version corrective (`1.0.0` → `1.0.1`) ;
+- `feat:` incrémente la version mineure (`1.0.0` → `1.1.0`) ;
+- `feat!:` ou un pied de message `BREAKING CHANGE:` incrémente la version majeure ;
+- `docs:`, `chore:`, `ci:`, `test:` et `refactor:` ne déclenchent pas de release.
+
+Le workflow `.github/workflows/release.yml` se lance à la main (_Actions_ → _Release_ → _Run workflow_) et uniquement sur `main`. Il :
+
+1. calcule la prochaine version et crée le tag `vX.Y.Z` ;
+2. met à jour `CHANGELOG.md` et la version de `package.json`, puis les commit avec `chore(release): X.Y.Z [skip ci]` ;
+3. publie la release GitHub avec ses notes ;
+4. construit l'image Docker et la publie sur GHCR avec les tags `X.Y.Z`, `X.Y`, `X` et `latest` (par exemple `ghcr.io/emeric-web/tdt:1.2.0`).
+
+Si aucun commit depuis le dernier tag ne justifie une version, rien n'est publié. Le workflow utilise le `GITHUB_TOKEN` ; si la protection de `main` interdit le commit de release, autoriser `github-actions` à contourner la règle.
+
+`npm run release:dry-run` simule une release en local (nécessite `GITHUB_TOKEN`).
+
 ## Commandes utiles
 
 - `npm run db:generate` régénère le client Prisma après une modification du schéma.
