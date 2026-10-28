@@ -22,6 +22,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: "list",
+  outputDir: "test-results/playwright",
   use: {
     baseURL: "http://127.0.0.1:3100",
     browserName: "chromium",

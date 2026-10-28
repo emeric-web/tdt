@@ -13,7 +13,7 @@ env:
 
 jobs:
   quality-and-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -67,7 +67,7 @@ jobs:
         run: npm run test:e2e
 
       - name: Archiver les rapports de couverture
-        if: always()
+        if: always() && hashFiles('coverage/**') != ''
         uses: actions/upload-artifact@v7
         with:
           name: couverture-tests
@@ -76,7 +76,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Archiver le rapport JUnit
-        if: always()
+        if: always() && hashFiles('test-results/junit.xml') != ''
         uses: actions/upload-artifact@v7
         with:
           name: rapport-junit
@@ -85,7 +85,7 @@ jobs:
           if-no-files-found: error
 
       - name: Afficher les résultats des tests
-        if: always()
+        if: always() && hashFiles('test-results/junit.xml') != ''
         uses: mikepenz/action-junit-report@v6
         with:
           report_paths: test-results/junit.xml
@@ -96,18 +96,18 @@ jobs:
           require_tests: true
 
       - name: Archiver les résultats Playwright en cas d'échec
-        if: failure()
+        if: failure() && hashFiles('test-results/playwright/**') != ''
         uses: actions/upload-artifact@v7
         with:
           name: resultats-playwright
-          path: test-results/
+          path: test-results/playwright/
           retention-days: 7
           if-no-files-found: warn
 
   publish-image:
     needs: quality-and-tests
     if: github.event_name == 'push' && github.ref_type == 'branch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read

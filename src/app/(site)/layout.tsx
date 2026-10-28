@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import "./_styles/globals.css";
 
@@ -10,14 +11,14 @@ export const metadata: Metadata = {
   description: "Gestion de tournois de tennis en simple",
 };
 
-export default function SiteLayout({ children }: LayoutProps<"/">) {
+export default function SiteLayout({ children }: { children: ReactNode }) {
   return (
-      <>
-        <AuthSessionProvider>
-          <AppHeader />
-          {children}
-          <AppFooter />
-        </AuthSessionProvider>
-      </>
+    <>
+      <AuthSessionProvider>
+        <AppHeader />
+        {children}
+        <AppFooter />
+      </AuthSessionProvider>
+    </>
   );
 }
