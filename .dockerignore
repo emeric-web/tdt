@@ -1,0 +1,14 @@
+.git
+.env
+.env.*
+node_modules
+.next
+.next-e2e
+coverage
+test-results
+playwright-report
+e2e
+docs
+src/generated/prisma
+*.tsbuildinfo
+npm-debug.log*

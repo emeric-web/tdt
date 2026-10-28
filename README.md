@@ -71,7 +71,7 @@ Les valeurs de `.env.example` sont réservées au développement local : en prod
 
 ## Installation locale
 
-Prérequis : Node.js 24.14.1 (version indiquée dans `.nvmrc`) et Docker avec Docker Compose.
+Prérequis : Node.js 24.22.1 (version indiquée dans `.nvmrc`) et Docker avec Docker Compose.
 
 1. Créer la configuration locale avant d'installer les dépendances :
 
@@ -119,6 +119,14 @@ Prérequis : Node.js 24.14.1 (version indiquée dans `.nvmrc`) et Docker avec Do
    Un administrateur peut créer des comptes membres depuis `/admin/membres/nouveau`.
    Les utilisateurs connectés consultent les tournois sur l'accueil ; les administrateurs peuvent en créer depuis `/admin/tournoi/nouveau`.
    Depuis la liste, un administrateur peut gérer les inscriptions et les têtes de série des tournois en préparation.
+
+   Pour démarrer l'application dans Docker à la place du serveur de développement :
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+   Le service `app` attend que PostgreSQL soit sain et est disponible sur [http://localhost:3000](http://localhost:3000). Les migrations et les données de démonstration restent à appliquer avec les commandes ci-dessus avant le premier démarrage applicatif.
 
 ## Tests et qualité
 
