@@ -11,6 +11,9 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      # Requis par `prisma generate` (postinstall) ; aucune connexion n'est ouverte.
+      DATABASE_URL: postgresql://tdt:tdt@localhost:5432/tdt?schema=public
 
     permissions:
       contents: write
