@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/emeric-web/tdt/compare/v1.0.0...v1.1.0) (2026-10-29)
+
+### Features
+
+* **monitoring:** ajouter la route de santé et la surveillance des conteneurs ([853ea08](https://github.com/emeric-web/tdt/commit/853ea085a23d328c6e750850a3ee324ead5a8626))
+
 ## 1.0.0 (2026-10-28)
 
 ### Features
