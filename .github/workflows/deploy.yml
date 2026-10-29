@@ -1,0 +1,62 @@
+
+name: Déploiement TDT
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version à déployer (ex. 1.2.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tdt-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Test de déploiement
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: production
+
+    steps:
+      - name: Vérifier la version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version invalide : $VERSION"
+            exit 1
+          fi
+
+      - name: Préparer la clé SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.TDT_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.TDT_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Tester le déploiement sur OVHcloud
+        env:
+          VPS_HOST: ${{ vars.TDT_VPS_HOST }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          ssh \
+            -p 49852 \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -T \
+            tdt-deploy@"$VPS_HOST" \
+            "$VERSION"
