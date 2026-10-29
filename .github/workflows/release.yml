@@ -63,7 +63,9 @@ jobs:
           image="$REGISTRY/${GITHUB_REPOSITORY,,}"
           major="${VERSION%%.*}"
           minor="${VERSION%.*}"
+
           docker build \
+            --target runner \
             --label "org.opencontainers.image.version=$VERSION" \
             --label "org.opencontainers.image.revision=$GITHUB_SHA" \
             --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
@@ -72,4 +74,12 @@ jobs:
             -t "$image:$major" \
             -t "$image:latest" \
             .
+
           docker push --all-tags "$image"
+
+          docker build \
+            --target migrate \
+            -t "$image:$VERSION-migrate" \
+            .
+
+          docker push "$image:$VERSION-migrate"

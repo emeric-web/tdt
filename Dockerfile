@@ -19,6 +19,10 @@ COPY . .
 ENV DATABASE_URL=postgresql://tdt:tdt@localhost:5432/tdt?schema=public
 RUN npm run build
 
+FROM deps AS migrate
+
+CMD ["./node_modules/.bin/prisma", "migrate", "deploy"]
+
 FROM base AS runner
 
 ENV NODE_ENV=production
