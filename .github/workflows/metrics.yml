@@ -1,0 +1,53 @@
+name: Métriques du pipeline
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Fenêtre d'analyse en jours"
+        default: "28"
+
+permissions:
+  contents: read
+  actions: read
+  issues: read
+
+jobs:
+  metrics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      # Requis par `prisma generate` (postinstall) ; aucune connexion n'est ouverte.
+      DATABASE_URL: postgresql://tdt:tdt@localhost:5432/tdt?schema=public
+
+    steps:
+      - name: Récupérer le code et les tags
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Préparer Node.js et le cache npm
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Calculer les métriques
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          METRICS_DAYS: ${{ inputs.days || '28' }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: npx tsx scripts/pipeline-metrics.ts
+
+      - name: Archiver le CSV et le résumé
+        uses: actions/upload-artifact@v7
+        with:
+          name: metriques-pipeline
+          path: metrics/
+          retention-days: 90
+          if-no-files-found: error
