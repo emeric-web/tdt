@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { listForArbitration, listToSchedule } = vi.hoisted(() => ({
   listForArbitration: vi.fn(),
@@ -72,6 +72,8 @@ describe.each(pages)("admin page %s", (_name, Page) => {
 });
 
 describe("Admin dashboard", () => {
+  afterEach(cleanup);
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getServerSession).mockResolvedValue(admin);

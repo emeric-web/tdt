@@ -1,0 +1,20 @@
+name: Incident
+description: Signaler un incident en production (alimente les métriques DORA)
+title: "Incident : "
+labels: ["incident"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version concernée
+      description: Numéro de la release en cause, par exemple 1.2.0.
+      placeholder: "1.2.0"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Ce qui s'est passé
+      description: Symptômes, heure de début, utilisateurs touchés.
+    validations:
+      required: true

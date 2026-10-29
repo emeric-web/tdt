@@ -194,6 +194,14 @@ Si aucun commit depuis le dernier tag ne justifie une version, rien n'est publi�
 
 `npm run release:dry-run` simule une release en local (nécessite `GITHUB_TOKEN`).
 
+## Monitoring
+
+- **Pipeline** : le workflow `.github/workflows/metrics.yml` (lundi, ou lancement manuel) lit l'historique GitHub via `gh api` avec `scripts/pipeline-metrics.ts`. Son résumé donne taux de réussite, durées médiane et maximale par job, tendance hebdomadaire, alertes (2 échecs consécutifs sur `main`, durée supérieure à 2 fois la médiane) et métriques DORA. Le CSV des jobs est archivé en artefact.
+- **Incidents** : les incidents se déclarent avec le modèle d'issue « Incident » (label `incident` à créer, version concernée obligatoire). Ils alimentent le taux d'échec des changements et le délai de rétablissement.
+- **Application** : `GET /api/health` (publique) répond 200 si la base est joignable et 503 sinon. Le `Dockerfile` déclare un `HEALTHCHECK` sur cette route et `docker-compose.yml` limite les logs à 5 fichiers de 10 Mo par service.
+- **Logs** : `scripts/log-summary.sh [service] [durée]` compte les lignes d'erreur des dernières 24 h (`docker compose logs`).
+- **Disponibilité** : `.github/workflows/health.yml` interroge `/api/health` toutes les 15 minutes ; il ne s'active que si la variable de dépôt `HEALTH_URL` est définie.
+
 ## Commandes utiles
 
 - `npm run db:generate` régénère le client Prisma après une modification du schéma.
