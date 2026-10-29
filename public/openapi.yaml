@@ -15,6 +15,7 @@ tags:
   - name: Tournaments
   - name: Matches
   - name: Audit
+  - name: Monitoring
 paths:
   /tournaments:
     get:
@@ -880,6 +881,37 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalError"
+
+  /health:
+    get:
+      tags: [Monitoring]
+      summary: Vérifier la disponibilité de l'application
+      description: >
+        Route publique, sans authentification. Répond 200 si la base de données
+        est joignable, 503 sinon, sans exposer de détail.
+      operationId: getHealth
+      x-implementation-status: implemented
+      responses:
+        "200":
+          description: Application et base de données disponibles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+        "503":
+          description: Base de données injoignable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [error]
 
 components:
   parameters:
