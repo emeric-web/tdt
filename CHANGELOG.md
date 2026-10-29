@@ -1,3 +1,9 @@
+## [1.2.0](https://github.com/emeric-web/tdt/compare/v1.1.0...v1.2.0) (2026-10-29)
+
+### Features
+
+* **ci:** ajouter la publication des images Docker de migration Prisma ([4ffa750](https://github.com/emeric-web/tdt/commit/4ffa7507264f43d093912a5396390c3a9734cf8c))
+
 ## [1.1.0](https://github.com/emeric-web/tdt/compare/v1.0.0...v1.1.0) (2026-10-29)
 
 ### Features
