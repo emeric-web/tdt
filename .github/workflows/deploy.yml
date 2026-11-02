@@ -18,9 +18,9 @@ concurrency:
 
 jobs:
   deploy:
-    name: Test de déploiement
+    name: Déploiement en production
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 15
     environment: production
 
     steps:
@@ -46,7 +46,7 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Tester le déploiement sur OVHcloud
+      - name: Déployer TDT sur OVHcloud
         env:
           VPS_HOST: ${{ vars.TDT_VPS_HOST }}
           VERSION: ${{ inputs.version }}
