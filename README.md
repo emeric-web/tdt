@@ -174,6 +174,8 @@ Le workflow GitHub Actions `.github/workflows/ci.yml` s'exécute sur chaque push
 
 Après le succès de tous les contrôles, chaque push sur une branche construit puis publie l'image `ghcr.io/emeric-web/tdt:<branche>-<sha court>`. L'authentification GHCR utilise le `GITHUB_TOKEN` du workflow ; aucun secret de registre supplémentaire n'est requis.
 
+Les images de release sont construites avec deux cibles Docker : `runner` (application) et `migrate` (migrations Prisma).
+
 ## Release et versions
 
 Les versions sont calculées par [semantic-release](https://semantic-release.gitbook.io) (configuration dans `.releaserc.json`) à partir des messages de commit au format Conventional Commits :
@@ -212,11 +214,11 @@ Si aucun commit depuis le dernier tag ne justifie une version, rien n'est publi�
 
 ## Déploiement
 
-L'application est un seul service Next.js adossé à PostgreSQL, sans état local.
+L'application tourne dans Docker sur un VPS Ubuntu (OVHcloud), derrière Apache qui assure le HTTPS et le reverse proxy vers `127.0.0.1:3000`. PostgreSQL 16 n'est pas exposé publiquement.
 
-1. Fournir `DATABASE_URL`, `NEXTAUTH_SECRET` et `NEXTAUTH_URL` via l'environnement d'hébergement.
-2. Appliquer les migrations sans les recréer : `npx prisma migrate deploy`.
-3. Compiler puis démarrer : `npm run build` puis `npm run start`.
-4. Ne pas exécuter `npm run db:seed` en production : il crée des comptes de démonstration.
+1. **Release** : le workflow `release.yml` (lancé à la main depuis `main`) publie sur GHCR deux images de la même version : `ghcr.io/emeric-web/tdt:X.Y.Z` (application) et `X.Y.Z-migrate` (migrations Prisma).
+2. **Déploiement** : le workflow `deploy.yml` (_Actions_ → _Déploiement TDT_ → _Run workflow_, champ `version`) s'exécute dans l'environnement GitHub `production`. Il se connecte au VPS par SSH avec une clé dédiée à commande restreinte ; le script du serveur vérifie les prérequis, télécharge les deux images, déclenche une sauvegarde PostgreSQL, applique les migrations, met à jour le seul service `app` puis contrôle sa santé, sa version et la réponse HTTPS.
+3. **Secrets** : `TDT_SSH_PRIVATE_KEY` et `TDT_SSH_KNOWN_HOSTS` (secrets) et `TDT_VPS_HOST` (variable) sont définis dans l'environnement `production`. La configuration du serveur (`.env`, `compose.prod.yml`) n'est pas versionnée.
+4. Ne jamais exécuter `npm run db:seed` ni `prisma migrate dev` en production.
 
-Avec plusieurs instances, dimensionner le pool de connexions PostgreSQL en conséquence.
+Les migrations ne sont pas réversibles automatiquement : revenir à l'ancienne image ne restaure pas l'ancien schéma. Une sauvegarde PostgreSQL quotidienne est réalisée sur le VPS, et une sauvegarde est déclenchée avant chaque migration.
