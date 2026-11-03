@@ -172,9 +172,7 @@ Les données de test utilisent des identifiants uniques et sont supprimées à l
 
 Le workflow GitHub Actions `.github/workflows/ci.yml` s'exécute sur chaque push et chaque pull request. Il contrôle ESLint et TypeScript, lance les tests Vitest avec couverture et génère `test-results/junit.xml`. Ce rapport est archivé comme artefact et affiché dans le résumé du workflow. Le parcours Playwright utilise un service PostgreSQL éphémère ; les rapports de couverture sont archivés.
 
-Après le succès de tous les contrôles, chaque push sur une branche construit puis publie l'image `ghcr.io/emeric-web/tdt:<branche>-<sha court>`. L'authentification GHCR utilise le `GITHUB_TOKEN` du workflow ; aucun secret de registre supplémentaire n'est requis.
-
-Les images de release sont construites avec deux cibles Docker : `runner` (application) et `migrate` (migrations Prisma).
+Après le succès des contrôles, le workflow construit sans la publier l'image Docker (cibles `runner` pour l'application et `migrate` pour les migrations Prisma) afin de vérifier que le `Dockerfile` reste valide. La publication sur GHCR est réservée au workflow de release.
 
 ## Release et versions
 
@@ -185,12 +183,12 @@ Les versions sont calculées par [semantic-release](https://semantic-release.git
 - `feat!:` ou un pied de message `BREAKING CHANGE:` incrémente la version majeure ;
 - `docs:`, `chore:`, `ci:`, `test:` et `refactor:` ne déclenchent pas de release.
 
-Le workflow `.github/workflows/release.yml` se lance à la main (_Actions_ → _Release_ → _Run workflow_) et uniquement sur `main`. Il :
+Le workflow `.github/workflows/release.yml` se lance automatiquement après le succès de la CI sur un push de `main` (et reste lançable à la main depuis `main`). Il n'agit que si `main` n'a pas avancé depuis la CI testée. Il :
 
 1. calcule la prochaine version et crée le tag `vX.Y.Z` ;
 2. met à jour `CHANGELOG.md` et la version de `package.json`, puis les commit avec `chore(release): X.Y.Z [skip ci]` ;
 3. publie la release GitHub avec ses notes ;
-4. construit l'image Docker et la publie sur GHCR avec les tags `X.Y.Z`, `X.Y`, `X` et `latest` (par exemple `ghcr.io/emeric-web/tdt:1.2.0`).
+4. construit les images Docker et les publie sur GHCR : l'application avec les tags `X.Y.Z`, `X.Y`, `X` et `latest` (par exemple `ghcr.io/emeric-web/tdt:1.2.0`), et les migrations avec `X.Y.Z-migrate`.
 
 Si aucun commit depuis le dernier tag ne justifie une version, rien n'est publié. Le workflow utilise le `GITHUB_TOKEN` ; si la protection de `main` interdit le commit de release, autoriser `github-actions` à contourner la règle.
 
@@ -216,7 +214,7 @@ Si aucun commit depuis le dernier tag ne justifie une version, rien n'est publi�
 
 L'application tourne dans Docker sur un VPS Ubuntu (OVHcloud), derrière Apache qui assure le HTTPS et le reverse proxy vers `127.0.0.1:3000`. PostgreSQL 16 n'est pas exposé publiquement.
 
-1. **Release** : le workflow `release.yml` (lancé à la main depuis `main`) publie sur GHCR deux images de la même version : `ghcr.io/emeric-web/tdt:X.Y.Z` (application) et `X.Y.Z-migrate` (migrations Prisma).
+1. **Release** : le workflow `release.yml` (automatique après la CI sur `main`) publie sur GHCR deux images de la même version : `ghcr.io/emeric-web/tdt:X.Y.Z` (application) et `X.Y.Z-migrate` (migrations Prisma).
 2. **Déploiement** : le workflow `deploy.yml` (_Actions_ → _Déploiement TDT_ → _Run workflow_, champ `version`) s'exécute dans l'environnement GitHub `production`. Il se connecte au VPS par SSH avec une clé dédiée à commande restreinte ; le script du serveur vérifie les prérequis, télécharge les deux images, déclenche une sauvegarde PostgreSQL, applique les migrations, met à jour le seul service `app` puis contrôle sa santé, sa version et la réponse HTTPS.
 3. **Secrets** : `TDT_SSH_PRIVATE_KEY` et `TDT_SSH_KNOWN_HOSTS` (secrets) et `TDT_VPS_HOST` (variable) sont définis dans l'environnement `production`. La configuration du serveur (`.env`, `compose.prod.yml`) n'est pas versionnée.
 4. Ne jamais exécuter `npm run db:seed` ni `prisma migrate dev` en production.

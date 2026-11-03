@@ -1,4 +1,4 @@
-name: Qualité, tests et publication Docker
+name: Qualité, tests et construction Docker
 
 on:
   push:
@@ -9,7 +9,6 @@ permissions:
 
 env:
   CI: "true"
-  REGISTRY: ghcr.io
 
 jobs:
   quality-and-tests:
@@ -104,35 +103,19 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-  publish-image:
+  build-image:
     needs: quality-and-tests
-    if: github.event_name == 'push' && github.ref_type == 'branch'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
-      packages: write
 
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v7
 
-      - name: Préparer le nom de l'image
-        run: |
-          repository="${GITHUB_REPOSITORY,,}"
-          branch=$(printf '%s' "$GITHUB_REF_NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9_.-]+/-/g; s/^[.-]+/_/')
-          tag="${branch:0:80}-${GITHUB_SHA:0:7}"
-          echo "IMAGE=$REGISTRY/$repository:$tag" >> "$GITHUB_ENV"
+      - name: Construire l'image de l'application
+        run: docker build --target runner -t tdt:ci .
 
-      - name: Se connecter à GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Construire l'image
-        run: docker build -t "$IMAGE" .
-
-      - name: Publier l'image
-        run: docker push "$IMAGE"
+      - name: Construire l'image de migration
+        run: docker build --target migrate -t tdt:ci-migrate .
