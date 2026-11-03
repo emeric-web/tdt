@@ -1,3 +1,13 @@
+## [1.3.0](https://github.com/emeric-web/tdt/compare/v1.2.0...v1.3.0) (2026-11-03)
+
+### Features
+
+* **ci:** ajouter le workflow de déploiement sécurisé sur le serveur de producition ([7ba088a](https://github.com/emeric-web/tdt/commit/7ba088a82b6c9c3277850c9021a941ad69ca3785))
+
+### Bug Fixes
+
+* test déploiement auto ([94e9d90](https://github.com/emeric-web/tdt/commit/94e9d905dc9a0d9fecde83861c99783bbb8d4c4e))
+
 ## [1.2.0](https://github.com/emeric-web/tdt/compare/v1.1.0...v1.2.0) (2026-10-29)
 
 ### Features
