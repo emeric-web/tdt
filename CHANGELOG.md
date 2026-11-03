@@ -1,3 +1,9 @@
+## [1.3.1](https://github.com/emeric-web/tdt/compare/v1.3.0...v1.3.1) (2026-11-03)
+
+### Bug Fixes
+
+* test déploiement auto ([1f451ac](https://github.com/emeric-web/tdt/commit/1f451ac768e80e50550b5e4bbbd63de4d2ff0609))
+
 ## [1.3.0](https://github.com/emeric-web/tdt/compare/v1.2.0...v1.3.0) (2026-11-03)
 
 ### Features
