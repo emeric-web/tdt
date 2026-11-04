@@ -15,7 +15,15 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.ts"],
     coverage: {
-      reporter: ["text", "html", "clover", "json"],
+      provider: "v8",
+      reporter: ["text", "html", "clover", "json", "lcov"],
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "src/generated/**",
+        "src/mocks/**",
+        "src/types/**",
+        "src/**/*.test.{ts,tsx}",
+      ],
     },
   },
 });

@@ -174,6 +174,14 @@ Le workflow GitHub Actions `.github/workflows/ci.yml` s'exécute sur chaque push
 
 Après le succès des contrôles, le workflow construit sans la publier l'image Docker (cibles `runner` pour l'application et `migrate` pour les migrations Prisma) afin de vérifier que le `Dockerfile` reste valide. La publication sur GHCR est réservée au workflow de release.
 
+## Analyse de la qualité
+
+[![Quality Gate](https://sonarcloud.io/api/project_badges/quality_gate?project=emeric-web_tdt)](https://sonarcloud.io/summary/new_code?id=emeric-web_tdt)
+
+Le job `sonar` de la CI analyse `src/` avec [SonarCloud](https://sonarcloud.io/project/overview?id=emeric-web_tdt) (configuration dans `sonar-project.properties`) et lui transmet la couverture Vitest (`coverage/lcov.info`). Les fichiers générés (`src/generated`), les données factices (`src/mocks`) et les tests sont exclus de l'analyse. Le Quality Gate est consultable sur SonarCloud mais ne bloque pas la CI.
+
+L'analyse nécessite le secret `SONAR_TOKEN` (Settings > Secrets and variables > Actions). Sans lui, par exemple pour une pull request venant d'un fork, elle est ignorée avec un message d'information et la CI reste valide. L'analyse automatique de SonarCloud doit rester désactivée pour ne pas entrer en conflit avec celle de la CI.
+
 ## Release et versions
 
 Les versions sont calculées par [semantic-release](https://semantic-release.gitbook.io) (configuration dans `.releaserc.json`) à partir des messages de commit au format Conventional Commits :

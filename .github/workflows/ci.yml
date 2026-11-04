@@ -103,6 +103,44 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
+  sonar:
+    name: Analyse SonarCloud
+    needs: quality-and-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Vérifier la disponibilité du jeton Sonar
+        id: sonar-token
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -n "$SONAR_TOKEN" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::SONAR_TOKEN indisponible (PR depuis un fork, Dependabot ou secret absent) : analyse Sonar ignorée."
+          fi
+
+      - name: Récupérer le rapport de couverture
+        if: steps.sonar-token.outputs.available == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: couverture-tests
+          path: coverage
+
+      - name: Analyser avec SonarCloud
+        if: steps.sonar-token.outputs.available == 'true'
+        uses: SonarSource/sonarqube-scan-action@v8
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
   build-image:
     needs: quality-and-tests
     runs-on: ubuntu-24.04
