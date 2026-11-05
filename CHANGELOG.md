@@ -1,3 +1,9 @@
+## [1.3.2](https://github.com/emeric-web/tdt/compare/v1.3.1...v1.3.2) (2026-11-05)
+
+### Bug Fixes
+
+* **docker:** réduire l'image de migration à ses dépendances de production ([1227f64](https://github.com/emeric-web/tdt/commit/1227f641ba44898bec59da187009c9c311b605cd))
+
 ## [1.3.1](https://github.com/emeric-web/tdt/compare/v1.3.0...v1.3.1) (2026-11-03)
 
 ### Bug Fixes
