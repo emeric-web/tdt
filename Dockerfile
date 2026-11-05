@@ -19,7 +19,15 @@ COPY . .
 ENV DATABASE_URL=postgresql://tdt:tdt@localhost:5432/tdt?schema=public
 RUN npm run build
 
-FROM deps AS migrate
+# Image dédiée aux migrations : uniquement les dépendances de production
+# (Prisma CLI inclus, car prisma est dans dependencies).
+FROM base AS migrate
+
+COPY package.json package-lock.json ./
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+ENV DATABASE_URL=postgresql://localhost:5432/tdt?schema=public
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
 CMD ["./node_modules/.bin/prisma", "migrate", "deploy"]
 
