@@ -1,3 +1,9 @@
+## [1.3.3](https://github.com/emeric-web/tdt/compare/v1.3.2...v1.3.3) (2026-11-09)
+
+### Bug Fixes
+
+* **deps:** corriger les vulnérabilités npm audit ([cbaf060](https://github.com/emeric-web/tdt/commit/cbaf06021987859439e27c5718f78c2b9a6d1ca2))
+
 ## [1.3.2](https://github.com/emeric-web/tdt/compare/v1.3.1...v1.3.2) (2026-11-05)
 
 ### Bug Fixes
