@@ -22,14 +22,6 @@ export type Release = {
   firstCommitAt: string | null;
 };
 
-export type Incident = {
-  number: number;
-  title: string;
-  body: string;
-  createdAt: string;
-  closedAt: string | null;
-};
-
 export type JobStat = {
   workflow: string;
   name: string;
@@ -48,17 +40,35 @@ export type WeekStat = {
   releases: number;
 };
 
+export type DeployRun = {
+  id: number;
+  title: string;
+  jobName: string;
+  conclusion: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+};
+
+export type Deployment = {
+  startedAt: string;
+  completedAt: string;
+  conclusion: "success" | "failure";
+  version: string | null;
+};
+
 export type Dora = {
   windowDays: number;
-  releasesInWindow: number;
+  deploymentsSucceeded: number;
   deploymentsPerWeek: number;
   leadTimeMedianHours: number | null;
-  releasesTotal: number;
-  failedReleases: number;
+  deploymentsInWindow: number;
+  failedDeployments: number;
   changeFailureRate: number | null;
-  incidentsClosed: number;
   mttrMedianHours: number | null;
 };
+
+// Nom du job de `deploy.yml` en production ; les anciens essais s'appelaient « Test de déploiement ».
+export const REAL_DEPLOY_JOB = "Déploiement en production";
 
 const FINISHED = new Set(["success", "failure"]);
 const DAY_MS = 86_400_000;
@@ -158,49 +168,93 @@ export function weeklyStats(runs: Run[], releases: Release[]): WeekStat[] {
   return [...weeks.values()].sort((a, b) => a.week.localeCompare(b.week));
 }
 
-const mentionsRelease = (incident: Incident, tag: string): boolean => {
-  const version = tag.replace(/^v/, "").replace(/[.+*?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`(^|[^\\d.])v?${version}(?![\\d]|\\.\\d)`);
-  return pattern.test(`${incident.title}\n${incident.body}`);
-};
-
 const hours = (from: string, to: string): number =>
   (Date.parse(to) - Date.parse(from)) / 3_600_000;
 
+const VERSION_PATTERN = /(\d+\.\d+\.\d+)/;
+
+const releaseVersion = (release: Release): string =>
+  release.tag.replace(/^v/, "");
+
+// Déploiements réels terminés : les essais en simulation et les exécutions
+// annulées sont exclus. La version vient du titre de l'exécution si elle y
+// figure, sinon de la dernière release publiée avant le lancement.
+export function deployments(
+  runs: DeployRun[],
+  releases: Release[],
+): Deployment[] {
+  const byDate = [...releases].sort(
+    (a, b) => Date.parse(a.publishedAt) - Date.parse(b.publishedAt),
+  );
+  const result: Deployment[] = [];
+  for (const run of runs) {
+    if (
+      run.jobName !== REAL_DEPLOY_JOB ||
+      (run.conclusion !== "success" && run.conclusion !== "failure") ||
+      !run.startedAt ||
+      !run.completedAt
+    ) {
+      continue;
+    }
+    const started = Date.parse(run.startedAt);
+    const fromTitle = VERSION_PATTERN.exec(run.title)?.[1] ?? null;
+    const inferred = byDate
+      .filter((release) => Date.parse(release.publishedAt) <= started)
+      .at(-1);
+    result.push({
+      startedAt: run.startedAt,
+      completedAt: run.completedAt,
+      conclusion: run.conclusion,
+      version: fromTitle ?? (inferred ? releaseVersion(inferred) : null),
+    });
+  }
+  return result.sort(
+    (a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt),
+  );
+}
+
 export function dora(
   releases: Release[],
-  incidents: Incident[],
+  deployed: Deployment[],
   now: Date,
   windowDays: number,
 ): Dora {
   const since = now.getTime() - windowDays * DAY_MS;
-  const inWindow = releases.filter(
-    (release) => Date.parse(release.publishedAt) >= since,
+  const inWindow = deployed.filter(
+    (deployment) => Date.parse(deployment.startedAt) >= since,
   );
-  const leadTimes = inWindow
-    .filter((release) => release.firstCommitAt !== null)
-    .map((release) =>
-      hours(release.firstCommitAt as string, release.publishedAt),
+  const succeeded = inWindow.filter(
+    (deployment) => deployment.conclusion === "success",
+  );
+  const failed = inWindow.filter(
+    (deployment) => deployment.conclusion === "failure",
+  );
+
+  const leadTimes = succeeded.flatMap((deployment) => {
+    const firstCommitAt = releases.find(
+      (release) => releaseVersion(release) === deployment.version,
+    )?.firstCommitAt;
+    return firstCommitAt ? [hours(firstCommitAt, deployment.completedAt)] : [];
+  });
+
+  // Rétablissement : de la fin d'un échec à la fin du déploiement réussi suivant.
+  const restoreTimes = failed.flatMap((deployment) => {
+    const next = succeeded.find(
+      (candidate) =>
+        Date.parse(candidate.startedAt) > Date.parse(deployment.completedAt),
     );
-  const failedReleases = releases.filter((release) =>
-    incidents.some((incident) => mentionsRelease(incident, release.tag)),
-  );
-  const restoreTimes = incidents
-    .filter((incident) => incident.closedAt !== null)
-    .map((incident) => hours(incident.createdAt, incident.closedAt as string));
+    return next ? [hours(deployment.completedAt, next.completedAt)] : [];
+  });
 
   return {
     windowDays,
-    releasesInWindow: inWindow.length,
-    deploymentsPerWeek: inWindow.length / (windowDays / 7),
+    deploymentsSucceeded: succeeded.length,
+    deploymentsPerWeek: succeeded.length / (windowDays / 7),
     leadTimeMedianHours: leadTimes.length === 0 ? null : median(leadTimes),
-    releasesTotal: releases.length,
-    failedReleases: failedReleases.length,
+    deploymentsInWindow: inWindow.length,
+    failedDeployments: failed.length,
     changeFailureRate:
-      releases.length === 0
-        ? null
-        : percent(failedReleases.length, releases.length),
-    incidentsClosed: restoreTimes.length,
+      inWindow.length === 0 ? null : percent(failed.length, inWindow.length),
     mttrMedianHours: restoreTimes.length === 0 ? null : median(restoreTimes),
   };
 }
@@ -304,11 +358,11 @@ export function renderSummary(input: {
   runs: Run[];
   jobs: Job[];
   releases: Release[];
-  incidents: Incident[];
+  deployments: Deployment[];
   defaultBranch: string;
 }): string {
-  const { windowDays, generatedAt, runs, jobs, releases, incidents } = input;
-  const metrics = dora(releases, incidents, generatedAt, windowDays);
+  const { windowDays, generatedAt, runs, jobs, releases } = input;
+  const metrics = dora(releases, input.deployments, generatedAt, windowDays);
   const alertMessages = alerts(runs, jobs, input.defaultBranch);
   const lines: string[] = [
     `# Métriques du pipeline : ${input.repository}`,
@@ -347,24 +401,24 @@ export function renderSummary(input: {
         )} | ${formatDuration(stat.maxSeconds)} |`,
     ),
     "",
-    "## Métriques DORA",
+    "## Métriques DORA (déploiements réels en production)",
     "",
     "| Métrique | Valeur | Base de calcul |",
     "| --- | ---: | --- |",
     `| Fréquence de déploiement | ${metrics.deploymentsPerWeek.toFixed(
       2,
-    )} / semaine | ${metrics.releasesInWindow} release(s) sur ${windowDays} jours |`,
+    )} / semaine | ${metrics.deploymentsSucceeded} déploiement(s) réussi(s) sur ${windowDays} jours, hors essais en simulation |`,
     `| Délai de livraison (médiane) | ${formatHours(
       metrics.leadTimeMedianHours,
-    )} | Du premier commit de la version à la publication de la release |`,
+    )} | Du premier commit de la version à la fin de son déploiement |`,
     `| Taux d'échec des changements | ${formatPercent(
       metrics.changeFailureRate,
-    )} | ${metrics.failedReleases} release(s) citée(s) par une issue « incident » sur ${
-      metrics.releasesTotal
-    } au total |`,
+    )} | ${metrics.failedDeployments} déploiement(s) en échec sur ${
+      metrics.deploymentsInWindow
+    } |`,
     `| Délai de rétablissement (médiane) | ${formatHours(
       metrics.mttrMedianHours,
-    )} | ${metrics.incidentsClosed} incident(s) clos |`,
+    )} | Du déploiement en échec au déploiement réussi suivant |`,
     "",
   ];
   return lines.join("\n");

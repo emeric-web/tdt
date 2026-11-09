@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   alerts,
+  deployments,
   dora,
   jobStats,
   jobsToCsv,
@@ -9,7 +10,8 @@ import {
   renderSummary,
   weekStart,
   weeklyStats,
-  type Incident,
+  type DeployRun,
+  type Deployment,
   type Job,
   type Release,
   type Run,
@@ -114,27 +116,85 @@ describe("weeklyStats", () => {
   });
 });
 
+const deployRun = (
+  id: number,
+  start: string,
+  overrides: Partial<DeployRun> = {},
+): DeployRun => ({
+  id,
+  title: "Déploiement TDT",
+  jobName: "Déploiement en production",
+  conclusion: "success",
+  startedAt: start,
+  completedAt: new Date(Date.parse(start) + 120_000).toISOString(),
+  ...overrides,
+});
+
+describe("deployments", () => {
+  const releases: Release[] = [
+    { tag: "v1.3.0", publishedAt: "2026-11-03T16:00:00Z", firstCommitAt: null },
+    { tag: "v1.3.1", publishedAt: "2026-11-03T19:00:00Z", firstCommitAt: null },
+  ];
+
+  it("excludes simulations, cancelled runs and unfinished runs", () => {
+    const result = deployments(
+      [
+        deployRun(1, "2026-11-03T17:00:00Z", {
+          jobName: "Test de déploiement",
+        }),
+        deployRun(2, "2026-11-03T17:10:00Z", { conclusion: "cancelled" }),
+        deployRun(3, "2026-11-03T17:20:00Z", { completedAt: null }),
+        deployRun(4, "2026-11-03T17:30:00Z"),
+      ],
+      releases,
+    );
+
+    expect(result.map((deployment) => deployment.startedAt)).toEqual([
+      "2026-11-03T17:30:00Z",
+    ]);
+  });
+
+  it("takes the version from the title, else from the latest release before the run", () => {
+    const result = deployments(
+      [
+        deployRun(1, "2026-11-03T21:30:00Z"),
+        deployRun(2, "2026-11-03T16:47:00Z"),
+        deployRun(3, "2026-11-04T10:00:00Z", {
+          title: "Déploiement TDT 1.3.0",
+        }),
+      ],
+      releases,
+    );
+
+    expect(result.map((deployment) => deployment.version)).toEqual([
+      "1.3.0",
+      "1.3.1",
+      "1.3.0",
+    ]);
+  });
+});
+
 describe("dora", () => {
   const now = new Date("2026-11-10T00:00:00Z");
   const releases: Release[] = [
-    {
-      tag: "v1.0.0",
-      publishedAt: "2026-11-02T12:00:00Z",
-      firstCommitAt: "2026-11-02T00:00:00Z",
-    },
     {
       tag: "v1.1.0",
       publishedAt: "2026-11-05T12:00:00Z",
       firstCommitAt: "2026-11-05T06:00:00Z",
     },
-    {
-      tag: "v1.10.0",
-      publishedAt: "2026-11-08T12:00:00Z",
-      firstCommitAt: null,
-    },
   ];
+  const deployment = (
+    startedAt: string,
+    conclusion: Deployment["conclusion"] = "success",
+    version: string | null = "1.1.0",
+  ): Deployment => ({
+    startedAt,
+    completedAt: new Date(Date.parse(startedAt) + 120_000).toISOString(),
+    conclusion,
+    version,
+  });
 
-  it("returns empty values without inventing incident figures", () => {
+  it("returns empty values without inventing figures", () => {
     const metrics = dora([], [], now, 14);
 
     expect(metrics.deploymentsPerWeek).toBe(0);
@@ -143,47 +203,50 @@ describe("dora", () => {
     expect(metrics.mttrMedianHours).toBeNull();
   });
 
-  it("computes frequency, lead time, failure rate and recovery time", () => {
-    const incidents: Incident[] = [
-      {
-        number: 4,
-        title: "Erreur après la release v1.1.0",
-        body: "",
-        createdAt: "2026-11-06T08:00:00Z",
-        closedAt: "2026-11-06T14:00:00Z",
-      },
-      {
-        number: 5,
-        title: "Panne",
-        body: "Version 1.1.0 concernée",
-        createdAt: "2026-11-07T08:00:00Z",
-        closedAt: null,
-      },
-    ];
+  it("measures frequency and lead time up to the end of the deployment", () => {
+    const metrics = dora(
+      releases,
+      [deployment("2026-11-05T17:58:00Z")],
+      now,
+      14,
+    );
 
-    const metrics = dora(releases, incidents, now, 14);
+    expect(metrics.deploymentsPerWeek).toBeCloseTo(0.5);
+    expect(metrics.leadTimeMedianHours).toBe(12);
+    expect(metrics.changeFailureRate).toBe(0);
+  });
 
-    expect(metrics.releasesInWindow).toBe(3);
-    expect(metrics.deploymentsPerWeek).toBeCloseTo(1.5);
-    expect(metrics.leadTimeMedianHours).toBe(9);
-    expect(metrics.failedReleases).toBe(1);
-    expect(metrics.changeFailureRate).toBeCloseTo(100 / 3);
-    expect(metrics.incidentsClosed).toBe(1);
+  it("measures recovery from a failed deployment to the next success", () => {
+    const metrics = dora(
+      releases,
+      [
+        deployment("2026-11-05T12:00:00Z", "failure"),
+        deployment("2026-11-05T18:00:00Z"),
+      ],
+      now,
+      14,
+    );
+
+    expect(metrics.failedDeployments).toBe(1);
+    expect(metrics.changeFailureRate).toBe(50);
     expect(metrics.mttrMedianHours).toBe(6);
   });
 
-  it("does not confuse 1.1.0 with 1.10.0 or 11.1.0", () => {
-    const incidents: Incident[] = [
-      {
-        number: 1,
-        title: "Bug en 1.10.0 puis 11.1.0",
-        body: "",
-        createdAt: "2026-11-06T08:00:00Z",
-        closedAt: null,
-      },
-    ];
+  it("leaves recovery empty when no success follows the failure", () => {
+    const metrics = dora(
+      releases,
+      [deployment("2026-11-08T12:00:00Z", "failure")],
+      now,
+      14,
+    );
 
-    expect(dora(releases, incidents, now, 14).failedReleases).toBe(1);
+    expect(metrics.mttrMedianHours).toBeNull();
+  });
+
+  it("ignores deployments older than the window", () => {
+    const metrics = dora([], [deployment("2026-10-01T12:00:00Z")], now, 14);
+
+    expect(metrics.deploymentsInWindow).toBe(0);
   });
 });
 
@@ -244,7 +307,7 @@ describe("jobsToCsv and renderSummary", () => {
       runs: [],
       jobs: [],
       releases: [],
-      incidents: [],
+      deployments: [],
       defaultBranch: "main",
     });
 

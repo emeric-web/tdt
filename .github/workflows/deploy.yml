@@ -1,5 +1,6 @@
-
 name: Déploiement TDT
+
+run-name: Déploiement TDT ${{ inputs.version }}
 
 on:
   workflow_dispatch:

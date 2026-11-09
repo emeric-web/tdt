@@ -3,9 +3,10 @@ import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
+  deployments as realDeployments,
   jobsToCsv,
   renderSummary,
-  type Incident,
+  type DeployRun,
   type Job,
   type Release,
   type Run,
@@ -67,6 +68,36 @@ for (const file of WORKFLOWS) {
   }
 }
 
+// Les déploiements sont lus à part : ils n'entrent ni dans les tableaux de jobs ni dans les alertes.
+const deployRuns: DeployRun[] = [];
+const rawDeployRuns = ghList<{ id: number; title: string }>(
+  `repos/${repository}/actions/workflows/deploy.yml/runs?status=completed&per_page=100&created=${encodeURIComponent(
+    `>=${since}`,
+  )}`,
+  ".workflow_runs[] | {id, title: .display_title}",
+);
+for (const run of rawDeployRuns) {
+  const [first] = ghList<{
+    name: string;
+    conclusion: string | null;
+    startedAt: string | null;
+    completedAt: string | null;
+  }>(
+    `repos/${repository}/actions/runs/${run.id}/jobs?filter=latest&per_page=1`,
+    ".jobs[] | {name, conclusion, startedAt: .started_at, completedAt: .completed_at}",
+  );
+  if (first) {
+    deployRuns.push({
+      id: run.id,
+      title: run.title,
+      jobName: first.name,
+      conclusion: first.conclusion,
+      startedAt: first.startedAt,
+      completedAt: first.completedAt,
+    });
+  }
+}
+
 const rawReleases = ghList<{ tag: string; publishedAt: string }>(
   `repos/${repository}/releases?per_page=100`,
   ".[] | select(.draft | not) | {tag: .tag_name, publishedAt: .published_at}",
@@ -86,10 +117,7 @@ const releases: Release[] = rawReleases.map((release, index) => {
   }
 });
 
-const incidents = ghList<Incident & { isPullRequest: boolean }>(
-  `repos/${repository}/issues?labels=incident&state=all&per_page=100`,
-  '.[] | {number, title, body: (.body // ""), createdAt: .created_at, closedAt: .closed_at, isPullRequest: (.pull_request != null)}',
-).filter((incident) => !incident.isPullRequest);
+const deployed = realDeployments(deployRuns, releases);
 
 const summary = renderSummary({
   repository,
@@ -98,7 +126,7 @@ const summary = renderSummary({
   runs,
   jobs,
   releases,
-  incidents,
+  deployments: deployed,
   defaultBranch,
 });
 
