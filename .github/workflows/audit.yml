@@ -1,0 +1,42 @@
+name: Audit des dépendances
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      # Requis par `prisma generate` (postinstall) ; aucune connexion n'est ouverte.
+      DATABASE_URL: postgresql://tdt:tdt@localhost:5432/tdt?schema=public
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v7
+
+      - name: Préparer Node.js et le cache npm
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Auditer les dépendances
+        run: npx tsx scripts/npm-audit-report.ts
+
+      - name: Archiver le rapport
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: audit-dependances
+          path: audit/
+          retention-days: 90
+          if-no-files-found: error
