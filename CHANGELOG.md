@@ -1,3 +1,9 @@
+## [1.4.0](https://github.com/emeric-web/tdt/compare/v1.3.3...v1.4.0) (2026-11-09)
+
+### Features
+
+* **metrics:** calculer les métriques DORA sur les déploiements réels ([0268ee9](https://github.com/emeric-web/tdt/commit/0268ee9e53237771c4ab1a6a48d49dc5f888dc84))
+
 ## [1.3.3](https://github.com/emeric-web/tdt/compare/v1.3.2...v1.3.3) (2026-11-09)
 
 ### Bug Fixes
