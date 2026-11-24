@@ -1,3 +1,9 @@
+## [1.4.1](https://github.com/emeric-web/tdt/compare/v1.4.0...v1.4.1) (2026-11-24)
+
+### Bug Fixes
+
+* **deps:** corriger la vulnérabilité d’Effect ([8c11ec3](https://github.com/emeric-web/tdt/commit/8c11ec3d223c376d4bde8ccbba4475f4ec494e76))
+
 ## [1.4.0](https://github.com/emeric-web/tdt/compare/v1.3.3...v1.4.0) (2026-11-09)
 
 ### Features
