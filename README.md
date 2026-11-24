@@ -142,6 +142,14 @@ Prérequis : Node.js 24.22.1 (version indiquée dans `.nvmrc`) et Docker avec Do
 
 Les tests suivent le schéma Arrange–Act–Assert et isolent la base de données par de faux repositories ; seul le test E2E utilise PostgreSQL.
 
+### Audit des dépendances
+
+`npm audit --omit=dev` vérifie les dépendances de production ; `npm audit` inclut aussi l'outillage. Le workflow `.github/workflows/audit.yml` lance chaque semaine `npx tsx scripts/npm-audit-report.ts` et archive les deux rapports. Une alerte haute ou critique en production, ou un audit impossible, fait échouer ce contrôle.
+
+Conserver `prisma`, `@prisma/client` et `@prisma/adapter-pg` sur la même version. L'override `@prisma/config > effect` impose une version 3 corrigée pour [GHSA-7589-6fvf-x4pw](https://github.com/advisories/GHSA-7589-6fvf-x4pw) ; le réexaminer lorsque Prisma actualisera cette dépendance.
+
+Ne pas appliquer `npm audit fix --force` sans examiner les versions proposées : il peut rétrograder Prisma en version 6, incompatible avec `prisma.config.ts`, et `semantic-release` en version 21. Les alertes modérées restantes dans le npm embarqué par `semantic-release` concernent l'outillage de release ; elles restent visibles dans l'audit complet.
+
 ## Tests de bout en bout
 
 Le test navigateur exécute le parcours réel de connexion, de déclaration du résultat, de confirmation par l'adversaire et d'avancement du vainqueur, sur une base PostgreSQL isolée.
